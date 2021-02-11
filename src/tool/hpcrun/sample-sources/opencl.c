@@ -72,6 +72,7 @@
 #define EXECUTION_COUNT "count"
 #define LATENCY "latency"
 #define SIMD "simd"
+#define INTEL_OPTIMIZATION_CHECK "intel_opt_check"
 #define NO_THRESHOLD  1L
 
 static device_finalizer_fn_entry_t device_finalizer_flush;
@@ -147,6 +148,7 @@ METHOD_FN(supports_event, const char *ev_str)
   return (hpcrun_ev_is(ev_str, GPU_STRING)
           || hpcrun_ev_is(ev_str, DEFAULT_INSTRUMENTATION)
           || strstr(ev_str, INSTRUMENTATION_PREFIX)
+          || hpcrun_ev_is(ev_str, INTEL_OPTIMIZATION_CHECK)
          );
   #else
   return false;
@@ -206,7 +208,9 @@ METHOD_FN(process_event_list, int lush_metrics)
         gpu_metrics_GPU_INST_enable();
         opencl_instrumentation_enable();
       }
-		}
+    } else if (hpcrun_ev_is(opencl_name, INTEL_OPTIMIZATION_CHECK)) {
+      opencl_optimization_check_enable();
+    }
   }
 }
 

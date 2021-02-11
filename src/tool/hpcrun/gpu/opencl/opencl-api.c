@@ -90,6 +90,8 @@
 #include "opencl-h2d-map.h"
 #include "opencl-queue-map.h"
 #include "opencl-context-map.h"
+#include "intel/optimization_check.h"
+
 
 
 //******************************************************************************
@@ -173,6 +175,9 @@ static __thread bool opencl_api_flag = false;
 static spinlock_t opencl_h2d_lock = SPINLOCK_UNLOCKED;
 
 static bool instrumentation = false;
+static bool optimization_check = false;
+
+
 
 static bool ENABLE_BLAME_SHIFTING = false;
 
@@ -956,6 +961,10 @@ hpcrun_clCreateCommandQueue
   cl_command_queue queue = HPCRUN_OPENCL_CALL(clCreateCommandQueue, (context, device,
         properties,errcode_ret));
 
+  if (optimization_check) {
+	  bool isQueueInOrder = isQueueInInOrderExecutionMode(properties);
+  }
+
   uint32_t context_id = opencl_cl_context_map_update((uint64_t)context);
   opencl_cl_queue_map_update((uint64_t)queue, context_id);
 
@@ -1015,6 +1024,11 @@ hpcrun_clCreateCommandQueueWithProperties
     }
   }
   cl_command_queue queue = HPCRUN_OPENCL_CALL(clCreateCommandQueueWithProperties, (context, device, queue_properties, errcode_ret));
+
+  if (optimization_check) {
+	  bool isQueueInOrder = isQueueInInOrderExecutionMode(*properties);
+  }
+
   if (queue_properties != NULL) {
     // The property is created by us
     free(queue_properties);
@@ -1392,6 +1406,17 @@ opencl_blame_shifting_enable
 {
   ENABLE_BLAME_SHIFTING = true;
 	ETMSG(OPENCL, "Opencl Blame-Shifting enabled");
+}
+
+
+void
+opencl_optimization_check_enable
+(
+ void
+)
+{
+  optimization_check = true;
+  printf("optimization enabled\n");
 }
 
 

@@ -177,6 +177,13 @@ opencl_blame_shifting_enable
 
 
 void
+opencl_optimization_check_enable
+(
+ void
+);
+
+
+void
 opencl_api_thread_finalize
 (
  void *args,
