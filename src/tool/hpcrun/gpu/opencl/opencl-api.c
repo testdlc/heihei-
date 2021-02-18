@@ -849,14 +849,8 @@ opencl_activity_completion_callback
     opencl_activity_process(event, cb_data, cb_basic.correlation_id);
   }
 
-	void *queue_ptr;
   if (is_opencl_blame_shifting_enabled() && cb_data->kind == GPU_ACTIVITY_KERNEL && event_command_exec_status == CL_COMPLETE) {
-		size_t queue_size;
-		clGetEventInfo(event, CL_EVENT_COMMAND_QUEUE, 0, NULL, &queue_size);
-		queue_ptr = hpcrun_malloc(sizeof(queue_size));
-		clGetEventInfo(event, CL_EVENT_COMMAND_QUEUE, queue_size, queue_ptr, NULL);
-		cl_command_queue queue = *(cl_command_queue*)queue_ptr;
-		kernel_epilogue(event, queue);	
+		opencl_kernel_epilogue(event);
 	}
 
 	if (cb_data->internal_event) {
@@ -961,7 +955,7 @@ hpcrun_clCreateCommandQueue
   opencl_cl_queue_map_update((uint64_t)queue, context_id);
 
 	if(is_opencl_blame_shifting_enabled()) {
-		queue_prologue(queue);
+		opencl_queue_prologue(queue);
 	}
 
   return queue;
@@ -1025,7 +1019,7 @@ hpcrun_clCreateCommandQueueWithProperties
   opencl_cl_queue_map_update((uint64_t)queue, context_id);
 	
 	if(is_opencl_blame_shifting_enabled()) {
-		queue_prologue(queue);
+		opencl_queue_prologue(queue);
 	}
 
   return queue;
@@ -1060,8 +1054,7 @@ hpcrun_clEnqueueNDRangeKernel
                                 num_events_in_wait_list, event_wait_list, eventp));
 
 	if(is_opencl_blame_shifting_enabled()) {
-		// add a node for corresponding kernel-queue entry in StreamQs
-		kernel_prologue(*eventp, command_queue);
+		opencl_kernel_prologue(*eventp);
 	}
 
   ETMSG(OPENCL, "Registering callback for kind: Kernel. "
@@ -1300,13 +1293,13 @@ hpcrun_clWaitForEvents
 		queue_ptr = hpcrun_malloc(sizeof(queue_size));
 		clGetEventInfo(*event_list, CL_EVENT_COMMAND_QUEUE, queue_size, queue_ptr, NULL);
 		queue = *(cl_command_queue*)queue_ptr;
-		sync_prologue(queue);
+		opencl_sync_prologue(queue);
 	}
 
 	cl_int status = HPCRUN_OPENCL_CALL(clWaitForEvents, (num_events, event_list));
 
 	if(is_opencl_blame_shifting_enabled()) {
-		sync_epilogue(queue);
+		opencl_sync_epilogue(queue);
 	}
 	return status;
 }
@@ -1321,11 +1314,11 @@ hpcrun_clFinish
 	ETMSG(OPENCL, "clFinish called");
 	// on the assumption that clFinish is synchonous, we have sandwiched it with calls to sync_prologue and sync_epilogue
 	if(is_opencl_blame_shifting_enabled()) {
-		sync_prologue(command_queue);
+		opencl_sync_prologue(command_queue);
 	}
 	cl_int status = HPCRUN_OPENCL_CALL(clFinish, (command_queue));
 	if(is_opencl_blame_shifting_enabled()) {
-		sync_epilogue(command_queue);
+		opencl_sync_epilogue(command_queue);
 	}
 	return status;
 }
@@ -1341,7 +1334,7 @@ hpcrun_clReleaseCommandQueue
 	cl_int status = HPCRUN_OPENCL_CALL(clReleaseCommandQueue, (command_queue));
 
 	if (is_opencl_blame_shifting_enabled() && status == CL_SUCCESS) {
-		queue_epilogue(command_queue);
+		opencl_queue_epilogue(command_queue);
 	}
 	return status;
 }
