@@ -113,6 +113,7 @@
   macro(clEnqueueWriteBuffer)  \
   macro(clEnqueueMapBuffer) \
   macro(clCreateBuffer)  \
+  macro(clSetKernelArg)  \
   macro(clReleaseMemObject)  \
   macro(clGetEventProfilingInfo)  \
   macro(clReleaseEvent)  \
@@ -333,6 +334,18 @@ OPENCL_CREATEBUFFER_FN
    size_t,
    void *,
    cl_int *
+  )
+);
+
+
+OPENCL_FN
+(
+  clSetKernelArg,
+  (
+   cl_kernel kernel,
+   cl_uint arg_index,
+   size_t arg_size,
+   const void* arg_value
   )
 );
 
@@ -1419,6 +1432,23 @@ hpcrun_clFinish
 
 
 cl_int
+hpcrun_clSetKernelArg
+(
+ cl_kernel kernel,
+ cl_uint arg_index,
+ size_t arg_size,
+ const void* arg_value
+)
+{
+  if (optimization_check) {
+    recordKernelParams(kernel, arg_value, arg_size);
+  }
+  cl_int status = HPCRUN_OPENCL_CALL(clSetKernelArg, (kernel, arg_index, arg_size, arg_value));
+  return status;
+}
+
+
+cl_int
 hpcrun_clReleaseMemObject
 (
  cl_mem mem
@@ -1525,7 +1555,7 @@ opencl_optimization_check_enable
 )
 {
   optimization_check = true;
-  printf("optimization enabled\n");
+  ETMSG(OPENCL, "Intel optimization check enabled");
 }
 
 
@@ -1573,7 +1603,7 @@ opencl_api_process_finalize
   if (optimization_check) { // is this the right to do final optimization checks
     // we cannot get cct nodes using gpu_application_thread_correlation_callback inside fini-thread callback
     // monitor_block_shootdown() inside libmonitor blocks this call
-    //isSingleDeviceUsed();
-    //areAllDevicesUsed();
+    isSingleDeviceUsed();
+    areAllDevicesUsed();
   }
 }
