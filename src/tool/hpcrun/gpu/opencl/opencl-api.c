@@ -1031,7 +1031,7 @@ hpcrun_clCreateCommandQueue
         properties,errcode_ret));
 
   if (optimization_check) {
-    isQueueInInOrderExecutionMode(properties);
+    isQueueInInOrderExecutionMode(&properties);
   }
 
   uint32_t context_id = opencl_cl_context_map_update((uint64_t)context);
@@ -1098,7 +1098,7 @@ hpcrun_clCreateCommandQueueWithProperties
   cl_command_queue queue = HPCRUN_OPENCL_CALL(clCreateCommandQueueWithProperties, (context, device, queue_properties, errcode_ret));
 
   if (optimization_check) {
-    isQueueInInOrderExecutionMode(*properties);
+    isQueueInInOrderExecutionMode(properties);
   }
 
   if (queue_properties != NULL) {
