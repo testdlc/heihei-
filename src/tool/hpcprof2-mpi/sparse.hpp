@@ -143,8 +143,15 @@ private:
 
   std::mutex outputs_l;
   std::vector<pms_profile_info_t> prof_infos;
-  size_t cur_position; //next available starting position for a profile in buffer
-  std::vector<std::vector<char>> obuffers; //profiles in binary form waiting to be written
+
+  struct OutBuffer{
+    std::vector<char> buf;
+    size_t cur_pos;
+    std::vector<uint32_t> buffered_pidxs;
+    std::mutex mtx;
+  };
+
+  std::vector<OutBuffer> obuffers; //profiles in binary form waiting to be written
   int cur_obuf_idx;
   std::optional<hpctoolkit::util::File> pmf;
   uint64_t fpos;
@@ -186,7 +193,6 @@ private:
   std::vector<std::pair<uint32_t, uint64_t>> rank_idx_ptr_pairs;
   std::vector<uint64_t> id_tuple_ptrs;
   uint32_t min_prof_info_idx;
-  std::vector<std::vector<uint32_t>> buffered_prof_idxs;
 
   hpctoolkit::util::ParallelForEach<pms_profile_info_t> parForPi;
 

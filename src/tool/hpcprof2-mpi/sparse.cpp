@@ -65,7 +65,7 @@
 using namespace hpctoolkit;
 
 SparseDB::SparseDB(const stdshim::filesystem::path& p, int threads) : dir(p), ctxMaxId(0), 
-  cur_position(0), fpos(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }) {
+  fpos(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }) {
 
   if(dir.empty())
     util::log::fatal{} << "SparseDB doesn't allow for dry runs!";
@@ -74,7 +74,7 @@ SparseDB::SparseDB(const stdshim::filesystem::path& p, int threads) : dir(p), ct
 }
 
 SparseDB::SparseDB(stdshim::filesystem::path&& p, int threads) : dir(std::move(p)), ctxMaxId(0), 
-  cur_position(0), fpos(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); })  {
+  fpos(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); })  {
 
   if(dir.empty())
     util::log::fatal{} << "SparseDB doesn't allow for dry runs!";
@@ -129,12 +129,9 @@ void SparseDB::notifyWavefront(DataClass d) noexcept {
   writePMSHdr(total_num_prof, *pmf);
 
   // prep for profiles writing 
-  std::vector<char> obuf0, obuf1;
-  std::vector<uint32_t> bpi0, bpi1;
-  obuffers.emplace_back(obuf0);
-  obuffers.emplace_back(obuf1);
-  buffered_prof_idxs.emplace_back(bpi0);
-  buffered_prof_idxs.emplace_back(bpi1);
+  obuffers = std::vector<OutBuffer>(2);
+  obuffers[0].cur_pos = 0;
+  obuffers[1].cur_pos = 0;
   cur_obuf_idx = 0;
   prof_infos.resize(my_num_prof);
 
@@ -1070,67 +1067,76 @@ uint64_t SparseDB::writeProf(const std::vector<char>& prof_bytes, uint32_t prof_
   uint64_t rel_off = -1; // only mode_wrt_nroot will return -1
                          // it doesn't have any data to add, so no position for it 
   uint64_t wrt_off = 0;  // only when it is going to write to the file, i.e write == true
-  bool write = false;
 
   // add summary data to the current buffer
   if(mode == mode_wrt_root){
-    obuffers[cur_obuf_idx].insert(obuffers[cur_obuf_idx].end(), prof_bytes.begin(), prof_bytes.end());
-    rel_off = cur_position;
+    obuffers[cur_obuf_idx].buf.insert(obuffers[cur_obuf_idx].buf.end(), prof_bytes.begin(), prof_bytes.end());
+    rel_off = obuffers[cur_obuf_idx].cur_pos;
   }
 
   if(mode != mode_reg_thr){ // called by write(), no need for lock, just communicate between ranks
-    write = true;
-    size_t my_size = obuffers[cur_obuf_idx].size();
-    wrt_off = filePosFetchOp(my_size);
+    OutBuffer& ob = obuffers[cur_obuf_idx];
 
-    // be consistent with the else case
-    cur_obuf_idx = 1 - cur_obuf_idx;
+    size_t my_size = ob.buf.size();
+    if(my_size == 0) return rel_off;
+    wrt_off = filePosFetchOp(my_size);
+    
+
+    //write
+    auto pmfi = pmf->open(true);
+    pmfi.writeat(wrt_off, ob.buf.size(), ob.buf.data());
+    for(auto pi : ob.buffered_pidxs)
+      prof_infos[pi-min_prof_info_idx].offset += wrt_off;
+    ob.cur_pos = 0;
+    ob.buf.clear();
+    ob.buffered_pidxs.clear();
+
+    return (mode == mode_wrt_nroot) ? rel_off : (wrt_off + rel_off);
+
   }else{
-    outputs_l.lock();
+    std::unique_lock<std::mutex> olck (outputs_l);
+    OutBuffer& ob = obuffers[cur_obuf_idx];
+
+    std::unique_lock<std::mutex> lck (ob.mtx);
 
     // take care all previous profs in buffer
-    if((prof_bytes.size() + cur_position) >= 10000000){
+    bool write = false;
+    if((prof_bytes.size() + ob.cur_pos) >= 100){ 
+      cur_obuf_idx = 1 - cur_obuf_idx;
       write = true;
 
-      size_t my_size = obuffers[cur_obuf_idx].size(); 
+      size_t my_size = ob.buf.size() + prof_bytes.size(); 
       wrt_off = filePosFetchOp(my_size);
       
-      // prep to switch buffer
-      cur_obuf_idx = 1 - cur_obuf_idx;
-      cur_position = 0;
     }
+    olck.unlock();
 
     //add bytes to the current buffer
-    obuffers[cur_obuf_idx].insert(obuffers[cur_obuf_idx].end(), prof_bytes.begin(), prof_bytes.end());
+    ob.buf.insert(ob.buf.end(), prof_bytes.begin(), prof_bytes.end());
 
     //record the prof_info_idx of the profile being added to the buffer
-    buffered_prof_idxs[cur_obuf_idx].emplace_back(prof_info_idx);
-    
+    ob.buffered_pidxs.emplace_back(prof_info_idx);
+
     //update current position
-    rel_off = cur_position;
-    cur_position += prof_bytes.size();
+    rel_off = ob.cur_pos;
+    ob.cur_pos += prof_bytes.size();
 
-    outputs_l.unlock();
+    if(write){
+      auto pmfi = pmf->open(true);
+      pmfi.writeat(wrt_off, ob.buf.size(), ob.buf.data());
+      for(auto pi : ob.buffered_pidxs)
+        prof_infos[pi-min_prof_info_idx].offset += wrt_off;
+      
+      ob.cur_pos = 0;
+      ob.buf.clear();
+      ob.buffered_pidxs.clear();
+      return (rel_off + wrt_off);
+    }
+
+    return rel_off;
   }
 
-  
 
-  // if no need to write, just return 
-  if(!write) return rel_off;
-
-  // write
-  auto pmfi = pmf->open(true);
-
-  // ASSUMPTION: only one thread per rank is writing
-  pmfi.writeat(wrt_off, obuffers[1-cur_obuf_idx].size(), obuffers[1-cur_obuf_idx].data());
-
-  //update the prof offsets based on the buffered_prof_idxs
-  for(auto pi : buffered_prof_idxs[1-cur_obuf_idx]){
-    prof_infos[pi-min_prof_info_idx].offset += wrt_off;
-  }
-    
-
-  return (mode == mode_wrt_root) ? (rel_off + wrt_off) : rel_off;
 
 
 }
@@ -2206,7 +2212,7 @@ void SparseDB::writeCCTMajor(const std::vector<uint64_t>& ctx_nzval_cnts,
 {
   //Prepare a union ctx_nzmids, only rank 0's ctx_nzmids is global
   unionMids(ctx_nzmids,world_rank,world_size, threads);
-  for(int i = 0; i<ctxcnt; i++){
+  for(uint i = 0; i<ctxcnt; i++){
     if(ctx_nzmids1[i] != ctx_nzmids[i])
       printf("nzmids not equal on %d ctx, size %ld != %ld\n", i, ctx_nzmids1[i].size(), ctx_nzmids[i].size());
   }
@@ -2279,7 +2285,6 @@ void SparseDB::writeCCTMajor1()
   auto all_prof_ctx_pairs = std::move(allProfileCtxIdIdxPairs(*pmf, team_size, prof_info_list));
   
   //read and write all the context groups I(rank) am responsible for
-  printf("rank %d: last ctx: %d\n", world_rank, my_ctxs.back());
   rwAllCtxGroup(my_ctxs, prof_info_list, ctx_offs, team_size, all_prof_ctx_pairs, *pmf, cct_major_f);
 
   //footer
@@ -2319,7 +2324,7 @@ void SparseDB::merge(int threads, bool debug) {
   keepTemps = debug;
   writeProfileMajor(threads,world_rank,world_size, ctx_nzval_cnts, ctx_nzmids);
 
-  for(int i = 0; i<ctxcnt; i++){
+  for(uint i = 0; i<ctxcnt; i++){
     if(ctx_nzval_cnts1[i] != ctx_nzval_cnts[i]) 
       printf("%d: %ld != %ld\n", i, ctx_nzval_cnts1[i], ctx_nzval_cnts[i]);
   }
