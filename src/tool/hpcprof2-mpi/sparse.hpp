@@ -163,6 +163,9 @@ private:
   std::vector<std::pair<const uint32_t,
     std::string>> sparseInputs;
 
+  std::optional<hpctoolkit::util::File> cmf;
+  std::vector<uint64_t> ctx_off1;
+
   bool keepTemps;
 
   //***************************************************************************
@@ -195,6 +198,8 @@ private:
   uint32_t min_prof_info_idx;
 
   hpctoolkit::util::ParallelForEach<pms_profile_info_t> parForPi;
+  struct ctxRange;
+  hpctoolkit::util::ParallelForEach<ctxRange> parForCtxs;
 
   //help collect cct major data 
   std::vector<uint64_t> ctx_nzval_cnts1;
@@ -355,6 +360,28 @@ private:
     std::map<uint16_t, MetricValBlock> metrics;
   };
 
+  struct ctxRange{
+    uint64_t start;
+    uint64_t end;
+
+    std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>> * pd;
+    std::vector<uint32_t>* ctx_ids;
+    std::vector<pms_profile_info_t>* pis;
+  };
+
+  struct nextCtx{
+    uint32_t ctx_id;
+    uint32_t prof_idx; 
+    size_t cursor;
+
+    //turn MaxHeap to MinHeap
+    bool operator<(const nextCtx& a) const{
+      if(ctx_id == a.ctx_id)
+        return prof_idx > a.prof_idx;
+      return ctx_id > a.ctx_id;  
+    }
+  };
+
   //---------------------------------------------------------------------------
   // header
   //---------------------------------------------------------------------------
@@ -472,6 +499,14 @@ private:
   void writeOneCtx(const uint32_t& ctx_id, const std::vector<uint64_t>& ctx_off,
                    const CtxMetricBlock& cmb,hpctoolkit::util::File::Instance& ofh);
 
+  void handleItemCtxs(ctxRange& cr);
+  //read a context group's data and write them out
+  void rwOneCtxGroup1(std::vector<uint32_t>& ctx_ids, 
+                      std::vector<pms_profile_info_t>& prof_info, 
+                     const std::vector<uint64_t>& ctx_off, 
+                     const int threads, 
+                     const std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
+
   //read a context group's data and write them out
   void rwOneCtxGroup(const std::vector<uint32_t>& ctx_ids, 
                      const std::vector<pms_profile_info_t>& prof_info, 
@@ -480,6 +515,13 @@ private:
                      const std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs,
                      const hpctoolkit::util::File& fh,
                      const hpctoolkit::util::File& ofh);
+
+  //read ALL context groups' data and write them out
+  void rwAllCtxGroup1(const std::vector<uint32_t>& my_ctxs, 
+                      std::vector<pms_profile_info_t>& prof_info, 
+                     const std::vector<uint64_t>& ctx_off, 
+                     const int threads,
+                     const std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
 
   //read ALL context groups' data and write them out
   void rwAllCtxGroup(const std::vector<uint32_t>& my_ctxs, 
