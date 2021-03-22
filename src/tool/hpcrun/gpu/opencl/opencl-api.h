@@ -149,6 +149,27 @@ opencl_instrumentation_enable
 
 
 void
+opencl_instrumentation_simd_enable
+(
+ void
+);
+
+
+void
+opencl_instrumentation_latency_enable
+(
+ void
+);
+
+
+void
+opencl_instrumentation_count_enable
+(
+ void
+);
+
+
+void
 opencl_api_thread_finalize
 (
  void *args,
