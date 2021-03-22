@@ -102,4 +102,24 @@ gtpin_produce_runtime_callstack
 );
 
 
+void
+gtpin_simd_enable
+(
+ void
+);
+
+
+void
+gtpin_latency_enable
+(
+ void
+);
+
+
+void
+gtpin_count_enable
+(
+ void
+);
+
 #endif

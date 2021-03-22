@@ -1219,6 +1219,36 @@ opencl_instrumentation_enable
 
 
 void
+opencl_instrumentation_simd_enable
+(
+ void
+)
+{
+  gtpin_simd_enable();
+}
+
+
+void
+opencl_instrumentation_latency_enable
+(
+ void
+)
+{
+  gtpin_latency_enable();
+}
+
+
+void
+opencl_instrumentation_count_enable
+(
+ void
+)
+{
+  gtpin_count_enable();
+}
+
+
+void
 opencl_api_thread_finalize
 (
  void *args,
