@@ -2234,7 +2234,7 @@ void SparseDB::rwOneCtxGroup1(std::vector<uint32_t>& ctx_ids,
   auto pdptr = &profiles_data;
   auto cidsptr = &ctx_ids;
   auto pisptr = &prof_info;
-  for(uint i = 0; i < threads; i++){
+  for(int i = 0; i < threads; i++){
     ctxRange cr;
     cr.start = t_starts[i];
     cr.end = t_ends[i];
