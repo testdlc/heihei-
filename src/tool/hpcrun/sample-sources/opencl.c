@@ -67,6 +67,7 @@
 //******************************************************************************
 
 #define GPU_STRING "gpu=opencl"
+#define DEFAULT_INSTRUMENTATION "gpu=opencl,inst"
 #define INSTRUMENTATION_PREFIX "gpu=opencl,inst="
 #define EXECUTION_COUNT "count"
 #define LATENCY "latency"
@@ -143,7 +144,8 @@ static bool
 METHOD_FN(supports_event, const char *ev_str)
 {
   #ifndef HPCRUN_STATIC_LINK
-  return (hpcrun_ev_is(ev_str, GPU_STRING) || strstr(ev_str, INSTRUMENTATION_PREFIX));
+  return (hpcrun_ev_is(ev_str, GPU_STRING) || hpcrun_ev_is(ev_str, DEFAULT_INSTRUMENTATION) ||
+          strstr(ev_str, INSTRUMENTATION_PREFIX));
   #else
   return false;
   #endif
@@ -166,6 +168,11 @@ METHOD_FN(process_event_list, int lush_metrics)
       &th, NO_THRESHOLD);
 
     if (hpcrun_ev_is(opencl_name, GPU_STRING)) {
+    } else if (hpcrun_ev_is(opencl_name, DEFAULT_INSTRUMENTATION)) {
+      opencl_instrumentation_latency_enable();
+      opencl_instrumentation_count_enable();
+      gpu_metrics_GPU_INST_enable();
+      opencl_instrumentation_enable();
     } else if (strstr(opencl_name, INSTRUMENTATION_PREFIX)) {
 
       int suffix_length = strlen(opencl_name) - strlen(INSTRUMENTATION_PREFIX);
@@ -177,19 +184,16 @@ METHOD_FN(process_event_list, int lush_metrics)
       char *inst = strtok(instrumentation_suffix, ",");
       while(inst) {
           if (strstr(inst, SIMD)) {
-            printf("simd enabled\n");
             validInst = true;
             opencl_instrumentation_simd_enable();
           } else if (strstr(inst, LATENCY)) {
-            printf("latency enabled\n");
             validInst = true;
             opencl_instrumentation_latency_enable();
           } else if (strstr(inst, EXECUTION_COUNT)) {
-            printf("count enabled\n");
             validInst = true;
             opencl_instrumentation_count_enable();
           } else {
-            printf("Unrecognized intel GPU instrumentation knob\n");
+            EEMSG("hpcrun: Unrecognized Intel GPU instrumentation knob\n");
           }
           inst = strtok(NULL, ",");
       }
@@ -246,11 +250,14 @@ METHOD_FN(display_events)
   printf("%1$s%2$s\n\t\tIntel GPU instrumentation(for opencl, dpcpp).\n"
     "\t\tCollect instrumentation results on GPU kernel.\n"
     "\t\tAvailable instrumentation support (tokens in brackets are to be passed as options):\n"
-    "\t\texecution count(count), latency(latency) and SIMD-lanes(simd).\n"
+    "\t\t1. Execution Count(count): Counts the no. of GPU instructions executed\n"
+    "\t\t2. Latency(latency): Execution cycles taken up by GPU instructions\n"
+    "\t\t3. SIMD Lanes(simd): SIMD lanes used by GPU instructions\n"
     "\t\te.g. %1$s%3$s,%4$s enables %3$s and %4$s instrumentation\n"
-    "\t\te.g. %1$s%3$s,%4$s,%5$s enables %3$s, %4$s and %5$s instrumentation\n",
+    "\t\te.g. %1$s%3$s,%4$s,%5$s enables %3$s, %4$s and %5$s instrumentation\n"
+    "\t\tIf %6$s is passed(default mode), %3$s and %4$s instrumentation is turned on\n",
     INSTRUMENTATION_PREFIX, "<comma-separated instrumentation options>",
-    EXECUTION_COUNT, LATENCY, SIMD);
+    EXECUTION_COUNT, LATENCY, SIMD, DEFAULT_INSTRUMENTATION);
   printf("\n");
 }
 
