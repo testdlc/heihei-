@@ -87,7 +87,7 @@ SparseDB::SparseDB(stdshim::filesystem::path&& p, int threads) : dir(std::move(p
 util::WorkshareResult SparseDB::help() {
   auto res = parForPi.contribute();
   if(!res.completed) return res;
-  return parForPi.contribute();
+  return parForCtxs.contribute();
 }
 
 void SparseDB::notifyPipeline() noexcept {
