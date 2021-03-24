@@ -786,6 +786,7 @@ void SparseDB::scatterIdxPtrs(const std::vector<std::pair<uint32_t, uint64_t>>& 
 
   MPI_Scatterv(idx_ptr_buffer.data(), all_rank_tuples_sizes->data(), all_rank_tuples_disps.data(), \
     IdxPtrType, rank_idx_ptr_pairs.data(), num_prof, IdxPtrType, 0, MPI_COMM_WORLD);
+  MPI_Type_free(&IdxPtrType);
 
 }
 
@@ -1003,6 +1004,7 @@ void SparseDB::workIdTuplesSection(const int world_rank, const int world_size, c
 
   //rank 0 gather all the pairs
   auto all_rank_pairs = gatherIdTuplesPairs(world_rank, world_size, threads, IntPairType, pairs);
+  MPI_Type_free(&IntPairType);
 
   //rank 0 convert pairs to tuples and sort them
   if(world_rank == 0) {
