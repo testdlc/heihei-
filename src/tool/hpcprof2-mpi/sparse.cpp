@@ -67,7 +67,8 @@ using namespace hpctoolkit;
 SparseDB::SparseDB(const stdshim::filesystem::path& p, int threads) : dir(p), ctxMaxId(0), 
   fpos(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }), 
   parForCtxs([&](ctxRange& item){ handleItemCtxs(item); }), 
-  parForPd([&](profData& item){ handleItemPd(item); }) {
+  parForPd([&](profData& item){ handleItemPd(item); }), 
+  parForCiip([&](profCtxIdIdxPairs& item){ handleItemCiip(item); }) {
 
   if(dir.empty())
     util::log::fatal{} << "SparseDB doesn't allow for dry runs!";
@@ -78,7 +79,8 @@ SparseDB::SparseDB(const stdshim::filesystem::path& p, int threads) : dir(p), ct
 SparseDB::SparseDB(stdshim::filesystem::path&& p, int threads) : dir(std::move(p)), ctxMaxId(0), 
   fpos(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }),
   parForCtxs([&](ctxRange& item){ handleItemCtxs(item); }), 
-  parForPd([&](profData& item){ handleItemPd(item); })  {
+  parForPd([&](profData& item){ handleItemPd(item); }), 
+  parForCiip([&](profCtxIdIdxPairs& item){ handleItemCiip(item); })   {
 
   if(dir.empty())
     util::log::fatal{} << "SparseDB doesn't allow for dry runs!";
@@ -88,6 +90,8 @@ SparseDB::SparseDB(stdshim::filesystem::path&& p, int threads) : dir(std::move(p
 
 util::WorkshareResult SparseDB::help() {
   auto res = parForPi.contribute();
+  if(!res.completed) return res;
+  res = parForCiip.contribute();
   if(!res.completed) return res;
   res = parForPd.contribute();
   if(!res.completed) return res;
@@ -1723,6 +1727,31 @@ SparseDB::allProfileCtxIdIdxPairs(const util::File& fh, const int threads,
   return all_prof_ctx_pairs;
 }
 
+
+void SparseDB::handleItemCiip(profCtxIdIdxPairs& ciip)
+{
+  auto pmfi = pmf->open(false);
+  *(ciip.prof_ctx_pairs) = std::move(ctxIdIdxPairs(pmfi, *(ciip.pi)));
+}
+
+std::vector<std::vector<SparseDB::PMS_CtxIdIdxPair>> 
+SparseDB::allProfileCtxIdIdxPairs1( std::vector<pms_profile_info_t>& prof_info)
+{
+  std::vector<std::vector<PMS_CtxIdIdxPair>> all_prof_ctx_pairs(prof_info.size());
+  std::vector<profCtxIdIdxPairs> ciips(prof_info.size());
+
+  for(uint i = 0; i < prof_info.size(); i++){
+    profCtxIdIdxPairs ciip;
+    ciip.prof_ctx_pairs = &all_prof_ctx_pairs[i];
+    ciip.pi = &prof_info[i];
+    ciips[i] = std::move(ciip);
+  }
+
+  parForCiip.fill(std::move(ciips));
+  parForCiip.contribute(parForCiip.wait());
+
+  return all_prof_ctx_pairs;
+}
 //---------------------------------------------------------------------------
 // read/extract profiles data - my_ctx_id_idx_pairs and my val&mid bytes
 //---------------------------------------------------------------------------
@@ -2109,20 +2138,7 @@ void SparseDB::rwOneCtxGroup(const std::vector<uint32_t>& ctx_ids,
   //read corresponding ctx_id_idx pairs and relevant val&mids bytes
   //----------------------------------
   auto profiles_data = std::move(profilesData(ctx_ids, prof_info, threads, all_prof_ctx_pairs, fh));
-/*
-  struct nextCtx{
-    uint32_t ctx_id;
-    uint32_t prof_idx; 
-    size_t cursor;
 
-    //turn MaxHeap to MinHeap
-    bool operator<(const nextCtx& a) const{
-      if(ctx_id == a.ctx_id)
-        return prof_idx > a.prof_idx;
-      return ctx_id > a.ctx_id;  
-    }
-  };
-*/
   //----------------------------------
   //assign ctx_ids to diffrent threads based on size
   //----------------------------------
@@ -2452,7 +2468,7 @@ void SparseDB::writeCCTMajor1()
   auto prof_info_list = std::move(profInfoList(team_size, *pmf));
 
   //get the ctx_id & ctx_idx pairs for all profiles
-  auto all_prof_ctx_pairs = std::move(allProfileCtxIdIdxPairs(*pmf, team_size, prof_info_list));
+  auto all_prof_ctx_pairs = std::move(allProfileCtxIdIdxPairs1(prof_info_list));
   
   //read and write all the context groups I(rank) am responsible for
   rwAllCtxGroup1(my_ctxs, prof_info_list, ctx_off1, team_size, all_prof_ctx_pairs);

@@ -204,6 +204,8 @@ private:
   hpctoolkit::util::ParallelForEach<ctxRange> parForCtxs;
   struct profData;
   hpctoolkit::util::ParallelForEach<profData> parForPd;
+  struct profCtxIdIdxPairs;
+  hpctoolkit::util::ParallelForEach<profCtxIdIdxPairs> parForCiip;
 
   //help collect cct major data 
   std::vector<uint64_t> ctx_nzval_cnts1;
@@ -394,6 +396,11 @@ private:
     uint i;
   };
 
+  struct profCtxIdIdxPairs{
+    std::vector<PMS_CtxIdIdxPair> * prof_ctx_pairs;
+    pms_profile_info_t * pi;
+  };
+
   //---------------------------------------------------------------------------
   // header
   //---------------------------------------------------------------------------
@@ -444,7 +451,13 @@ private:
 
   std::vector<std::vector<PMS_CtxIdIdxPair>> 
   allProfileCtxIdIdxPairs(const hpctoolkit::util::File& fh, const int threads,
-                          const std::vector<pms_profile_info_t>& prof_info);      
+                          const std::vector<pms_profile_info_t>& prof_info);    
+
+
+  void handleItemCiip(profCtxIdIdxPairs& ciip);  
+
+  std::vector<std::vector<SparseDB::PMS_CtxIdIdxPair>> 
+  allProfileCtxIdIdxPairs1( std::vector<pms_profile_info_t>& prof_info);
 
 
   //---------------------------------------------------------------------------
