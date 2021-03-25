@@ -202,6 +202,8 @@ private:
   hpctoolkit::util::ParallelForEach<pms_profile_info_t> parForPi;
   struct ctxRange;
   hpctoolkit::util::ParallelForEach<ctxRange> parForCtxs;
+  struct profData;
+  hpctoolkit::util::ParallelForEach<profData> parForPd;
 
   //help collect cct major data 
   std::vector<uint64_t> ctx_nzval_cnts1;
@@ -384,6 +386,14 @@ private:
     }
   };
 
+  struct profData{
+    std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>> * profiles_data; //ptr to the destination
+    std::vector<pms_profile_info_t> * pi_list;
+    std::vector<std::vector<PMS_CtxIdIdxPair>> * all_prof_ctx_pairs;
+    std::vector<uint32_t> * ctx_ids;
+    uint i;
+  };
+
   //---------------------------------------------------------------------------
   // header
   //---------------------------------------------------------------------------
@@ -459,6 +469,10 @@ private:
                int threads,const std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs,
                const hpctoolkit::util::File& fh);                               
 
+  void handleItemPd(profData& pd);
+  std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>>
+  profilesData1(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_info_t>& prof_info_list,
+                std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
 
   //---------------------------------------------------------------------------
   // interpret the data bytes and convert to CtxMetricBlock
@@ -507,7 +521,7 @@ private:
                       std::vector<pms_profile_info_t>& prof_info, 
                      const std::vector<uint64_t>& ctx_off, 
                      const int threads, 
-                     const std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
+                      std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
 
   //read a context group's data and write them out
   void rwOneCtxGroup(const std::vector<uint32_t>& ctx_ids, 
@@ -523,7 +537,7 @@ private:
                       std::vector<pms_profile_info_t>& prof_info, 
                      const std::vector<uint64_t>& ctx_off, 
                      const int threads,
-                     const std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
+                      std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
 
   //read ALL context groups' data and write them out
   void rwAllCtxGroup(const std::vector<uint32_t>& my_ctxs, 
