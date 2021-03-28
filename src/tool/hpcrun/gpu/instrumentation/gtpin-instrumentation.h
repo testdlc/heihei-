@@ -103,6 +103,13 @@ gtpin_produce_runtime_callstack
 
 
 void
+gtpin_enable_instrumentation
+(
+ void
+);
+
+
+void
 gtpin_simd_enable
 (
  void

@@ -118,6 +118,7 @@ static atomic_ullong correlation_id;
 
 static spinlock_t files_lock = SPINLOCK_UNLOCKED;
 
+static bool instrumentation = false;
 static bool gtpin_use_runtime_callstack = false;
 static bool simd_knob = false;
 static bool latency_knob = false;
@@ -876,6 +877,10 @@ onKernelRun
 {
   ETMSG(OPENCL, "onKernelRun starting. Inserted: correlation %"PRIu64"", (uint64_t)kernelExec);
 
+  if (!instrumentation) {
+    return;
+  }
+
   GTPINTOOL_STATUS status = GTPINTOOL_STATUS_SUCCESS;
   HPCRUN_GTPIN_CALL(GTPin_KernelProfilingActive,(kernelExec, 1)); // where is return value?
   ASSERT_GTPIN_STATUS(status);
@@ -899,8 +904,9 @@ onKernelComplete
 
   ETMSG(OPENCL, "onKernelComplete starting. Lookup: correlation %"PRIu64", result %p", correlation_id, entry);
 
-  if (entry == NULL) {
+  if (entry == NULL || !instrumentation) {
     // XXX(Keren): the opencl/level zero api's kernel launch is not wrapped
+    // or instrumentation is turned off
     return;
   }
 
@@ -1083,6 +1089,16 @@ gtpin_produce_runtime_callstack
       gtpin_first = false;
     }
   }
+}
+
+
+void
+gtpin_enable_instrumentation
+(
+ void
+)
+{
+  instrumentation = true;
 }
 
 
