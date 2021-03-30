@@ -558,7 +558,8 @@ am__libhpcrun_la_SOURCES_DIST = utilities/first_func.c main.h main.c \
 	gpu/opencl/opencl-h2d-map.c gpu/opencl/opencl-queue-map.c \
 	gpu/opencl/opencl-context-map.c \
 	gpu/blame-shifting/opencl/opencl-blame.c \
-	gpu/opencl/intel/optimization_check.c \
+	gpu/opencl/intel/optimization-check.c \
+	gpu/opencl/opencl-kernel-loadmap-map.c \
 	gpu/opencl/intel/maps/queue-context-map.c \
 	gpu/opencl/intel/maps/kernel-queue-map.c \
 	gpu/opencl/intel/maps/kernel-param-map.c \
@@ -793,7 +794,8 @@ am__objects_35 =
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/libhpcrun_la-opencl-queue-map.lo \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/libhpcrun_la-opencl-context-map.lo \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/blame-shifting/opencl/libhpcrun_la-opencl-blame.lo \
-@OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/libhpcrun_la-optimization_check.lo \
+@OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/libhpcrun_la-optimization-check.lo \
+@OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/libhpcrun_la-opencl-kernel-loadmap-map.lo \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/maps/libhpcrun_la-queue-context-map.lo \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/maps/libhpcrun_la-kernel-queue-map.lo \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/maps/libhpcrun_la-kernel-param-map.lo \
@@ -2039,7 +2041,8 @@ MY_AARCH64_FILES = \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/opencl-queue-map.c \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/opencl-context-map.c \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/blame-shifting/opencl/opencl-blame.c \
-@OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/optimization_check.c \
+@OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/optimization-check.c \
+@OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/opencl-kernel-loadmap-map.c \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/maps/queue-context-map.c \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/maps/kernel-queue-map.c	\
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/maps/kernel-param-map.c	\
@@ -3160,9 +3163,12 @@ gpu/opencl/intel/$(am__dirstamp):
 gpu/opencl/intel/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) gpu/opencl/intel/$(DEPDIR)
 	@: > gpu/opencl/intel/$(DEPDIR)/$(am__dirstamp)
-gpu/opencl/intel/libhpcrun_la-optimization_check.lo:  \
+gpu/opencl/intel/libhpcrun_la-optimization-check.lo:  \
 	gpu/opencl/intel/$(am__dirstamp) \
 	gpu/opencl/intel/$(DEPDIR)/$(am__dirstamp)
+gpu/opencl/libhpcrun_la-opencl-kernel-loadmap-map.lo:  \
+	gpu/opencl/$(am__dirstamp) \
+	gpu/opencl/$(DEPDIR)/$(am__dirstamp)
 gpu/opencl/intel/maps/$(am__dirstamp):
 	@$(MKDIR_P) gpu/opencl/intel/maps
 	@: > gpu/opencl/intel/maps/$(am__dirstamp)
@@ -4205,10 +4211,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-api.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-context-map.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-h2d-map.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-kernel-loadmap-map.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-memory-manager.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-queue-map.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/$(DEPDIR)/libhpcrun_opencl_la-opencl-api-wrappers.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-optimization_check.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-optimization-check.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-pointer-alias-check-helper.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/intel/maps/$(DEPDIR)/libhpcrun_la-buffer-map.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gpu/opencl/intel/maps/$(DEPDIR)/libhpcrun_la-device-map.Plo@am__quote@
@@ -6000,12 +6007,19 @@ gpu/blame-shifting/opencl/libhpcrun_la-opencl-blame.lo: gpu/blame-shifting/openc
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhpcrun_la_CPPFLAGS) $(CPPFLAGS) $(libhpcrun_la_CFLAGS) $(CFLAGS) -c -o gpu/blame-shifting/opencl/libhpcrun_la-opencl-blame.lo `test -f 'gpu/blame-shifting/opencl/opencl-blame.c' || echo '$(srcdir)/'`gpu/blame-shifting/opencl/opencl-blame.c
 
-gpu/opencl/intel/libhpcrun_la-optimization_check.lo: gpu/opencl/intel/optimization_check.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhpcrun_la_CPPFLAGS) $(CPPFLAGS) $(libhpcrun_la_CFLAGS) $(CFLAGS) -MT gpu/opencl/intel/libhpcrun_la-optimization_check.lo -MD -MP -MF gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-optimization_check.Tpo -c -o gpu/opencl/intel/libhpcrun_la-optimization_check.lo `test -f 'gpu/opencl/intel/optimization_check.c' || echo '$(srcdir)/'`gpu/opencl/intel/optimization_check.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-optimization_check.Tpo gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-optimization_check.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gpu/opencl/intel/optimization_check.c' object='gpu/opencl/intel/libhpcrun_la-optimization_check.lo' libtool=yes @AMDEPBACKSLASH@
+gpu/opencl/intel/libhpcrun_la-optimization-check.lo: gpu/opencl/intel/optimization-check.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhpcrun_la_CPPFLAGS) $(CPPFLAGS) $(libhpcrun_la_CFLAGS) $(CFLAGS) -MT gpu/opencl/intel/libhpcrun_la-optimization-check.lo -MD -MP -MF gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-optimization-check.Tpo -c -o gpu/opencl/intel/libhpcrun_la-optimization-check.lo `test -f 'gpu/opencl/intel/optimization-check.c' || echo '$(srcdir)/'`gpu/opencl/intel/optimization-check.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-optimization-check.Tpo gpu/opencl/intel/$(DEPDIR)/libhpcrun_la-optimization-check.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gpu/opencl/intel/optimization-check.c' object='gpu/opencl/intel/libhpcrun_la-optimization-check.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhpcrun_la_CPPFLAGS) $(CPPFLAGS) $(libhpcrun_la_CFLAGS) $(CFLAGS) -c -o gpu/opencl/intel/libhpcrun_la-optimization_check.lo `test -f 'gpu/opencl/intel/optimization_check.c' || echo '$(srcdir)/'`gpu/opencl/intel/optimization_check.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhpcrun_la_CPPFLAGS) $(CPPFLAGS) $(libhpcrun_la_CFLAGS) $(CFLAGS) -c -o gpu/opencl/intel/libhpcrun_la-optimization-check.lo `test -f 'gpu/opencl/intel/optimization-check.c' || echo '$(srcdir)/'`gpu/opencl/intel/optimization-check.c
+
+gpu/opencl/libhpcrun_la-opencl-kernel-loadmap-map.lo: gpu/opencl/opencl-kernel-loadmap-map.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhpcrun_la_CPPFLAGS) $(CPPFLAGS) $(libhpcrun_la_CFLAGS) $(CFLAGS) -MT gpu/opencl/libhpcrun_la-opencl-kernel-loadmap-map.lo -MD -MP -MF gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-kernel-loadmap-map.Tpo -c -o gpu/opencl/libhpcrun_la-opencl-kernel-loadmap-map.lo `test -f 'gpu/opencl/opencl-kernel-loadmap-map.c' || echo '$(srcdir)/'`gpu/opencl/opencl-kernel-loadmap-map.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-kernel-loadmap-map.Tpo gpu/opencl/$(DEPDIR)/libhpcrun_la-opencl-kernel-loadmap-map.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gpu/opencl/opencl-kernel-loadmap-map.c' object='gpu/opencl/libhpcrun_la-opencl-kernel-loadmap-map.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhpcrun_la_CPPFLAGS) $(CPPFLAGS) $(libhpcrun_la_CFLAGS) $(CFLAGS) -c -o gpu/opencl/libhpcrun_la-opencl-kernel-loadmap-map.lo `test -f 'gpu/opencl/opencl-kernel-loadmap-map.c' || echo '$(srcdir)/'`gpu/opencl/opencl-kernel-loadmap-map.c
 
 gpu/opencl/intel/maps/libhpcrun_la-queue-context-map.lo: gpu/opencl/intel/maps/queue-context-map.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libhpcrun_la_CPPFLAGS) $(CPPFLAGS) $(libhpcrun_la_CFLAGS) $(CFLAGS) -MT gpu/opencl/intel/maps/libhpcrun_la-queue-context-map.lo -MD -MP -MF gpu/opencl/intel/maps/$(DEPDIR)/libhpcrun_la-queue-context-map.Tpo -c -o gpu/opencl/intel/maps/libhpcrun_la-queue-context-map.lo `test -f 'gpu/opencl/intel/maps/queue-context-map.c' || echo '$(srcdir)/'`gpu/opencl/intel/maps/queue-context-map.c
