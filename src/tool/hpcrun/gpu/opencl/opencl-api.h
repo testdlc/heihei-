@@ -141,6 +141,28 @@ opencl_bind
 );
 
 
+uint64_t
+get_numeric_hash_id_for_string
+(
+ const char *str,
+ size_t strlen
+);
+
+
+void
+opencl_blame_shifting_enable
+(
+ void
+);
+
+
+void
+opencl_optimization_check_enable
+(
+ void
+);
+
+
 void
 opencl_instrumentation_enable
 (

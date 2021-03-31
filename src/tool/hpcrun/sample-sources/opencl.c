@@ -72,6 +72,7 @@
 #define EXECUTION_COUNT "count"
 #define LATENCY "latency"
 #define SIMD "simd"
+#define INTEL_OPTIMIZATION_CHECK "intel_opt_check"
 #define NO_THRESHOLD  1L
 
 static device_finalizer_fn_entry_t device_finalizer_flush;
@@ -115,6 +116,7 @@ static void
 METHOD_FN(start)
 {
   TMSG(OPENCL, "start");
+  TD_GET(ss_state)[self->sel_idx] = START;
 }
 
 
@@ -145,7 +147,8 @@ METHOD_FN(supports_event, const char *ev_str)
 {
   #ifndef HPCRUN_STATIC_LINK
   return (hpcrun_ev_is(ev_str, GPU_STRING) || hpcrun_ev_is(ev_str, DEFAULT_INSTRUMENTATION) ||
-          strstr(ev_str, INSTRUMENTATION_PREFIX));
+          strstr(ev_str, INSTRUMENTATION_PREFIX) ||
+          hpcrun_ev_is(ev_str, INTEL_OPTIMIZATION_CHECK));
   #else
   return false;
   #endif
@@ -204,6 +207,9 @@ METHOD_FN(process_event_list, int lush_metrics)
         gpu_metrics_GPU_INST_enable();
         opencl_instrumentation_enable();
       }
+    } else if (hpcrun_ev_is(opencl_name, INTEL_OPTIMIZATION_CHECK)) {
+      opencl_optimization_check_enable();
+      gpu_metrics_INTEL_OPTIMIZATION_enable();
     }
   }
 }
@@ -260,6 +266,11 @@ METHOD_FN(display_events)
     "\t\tIf %6$s is passed(default mode), %3$s and %4$s instrumentation is turned on\n",
     INSTRUMENTATION_PREFIX, "<comma-separated instrumentation options>",
     EXECUTION_COUNT, LATENCY, SIMD, DEFAULT_INSTRUMENTATION);
+  printf("\n");
+
+  printf("%s\tIntel Optimization suggestions.\n"
+    "\t\tprovides oneapi optimization suggestions from the optimization guide. To use it, pass %s %s to your hpcrun command\n",
+    GPU_STRING, INTEL_OPTIMIZATION_CHECK);
   printf("\n");
 }
 

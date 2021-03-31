@@ -60,7 +60,6 @@
 #include <hpcrun/gpu/gpu-splay-allocator.h>
 #include <hpcrun/gpu/gpu-op-placeholders.h>
 
-#include "opencl-context-map.h"
 
 
 //*****************************************************************************
@@ -73,22 +72,22 @@
 
 
 #define st_insert				\
-  typed_splay_insert(context)
+  typed_splay_insert(correlation_id)
 
 #define st_lookup				\
-  typed_splay_lookup(context)
+  typed_splay_lookup(correlation_id)
 
 #define st_delete				\
-  typed_splay_delete(context)
+  typed_splay_delete(correlation_id)
 
 #define st_forall				\
-  typed_splay_forall(context)
+  typed_splay_forall(correlation_id)
 
 #define st_count				\
-  typed_splay_count(context)
+  typed_splay_count(correlation_id)
 
 #define st_alloc(free_list)			\
-  typed_splay_alloc(free_list, opencl_context_map_entry_t)
+  typed_splay_alloc(free_list, opencl_kernel_loadmap_map_entry_t)
 
 #define st_free(free_list, node)		\
   typed_splay_free(free_list, node)
@@ -100,55 +99,55 @@
 //*****************************************************************************
 
 #undef typed_splay_node
-#define typed_splay_node(context) opencl_context_map_entry_t
+#define typed_splay_node(correlation_id) opencl_kernel_loadmap_map_entry_t
 
-typedef struct typed_splay_node(context) {
-  struct typed_splay_node(context) *left;
-  struct typed_splay_node(context) *right;
-  uint64_t context; // key
+typedef struct typed_splay_node(correlation_id) {
+  struct typed_splay_node(correlation_id) *left;
+  struct typed_splay_node(correlation_id) *right;
+  uint64_t kernel_name_id; // key using kernel name hash
 
-  uint32_t context_id;
-} typed_splay_node(context); 
+  uint32_t module_id;
+} typed_splay_node(correlation_id); 
+
 
 
 //******************************************************************************
 // local data
 //******************************************************************************
 
-static opencl_context_map_entry_t *map_root = NULL;
+static opencl_kernel_loadmap_map_entry_t *map_root = NULL;
 
-static opencl_context_map_entry_t *free_list = NULL;
+static opencl_kernel_loadmap_map_entry_t *free_list = NULL;
 
-static spinlock_t opencl_context_map_lock = SPINLOCK_UNLOCKED;
+static spinlock_t opencl_kernel_loadmap_map_lock = SPINLOCK_UNLOCKED;
 
-static uint32_t cl_context_id = 0;
+
 
 //*****************************************************************************
 // private operations
 //*****************************************************************************
 
-typed_splay_impl(context)
+typed_splay_impl(correlation_id)
 
 
-static opencl_context_map_entry_t *
-opencl_cl_context_map_entry_alloc()
+static opencl_kernel_loadmap_map_entry_t *
+opencl_kernel_loadmap_map_entry_alloc()
 {
   return st_alloc(&free_list);
 }
 
 
-static opencl_context_map_entry_t *
-opencl_cl_context_map_entry_new
+static opencl_kernel_loadmap_map_entry_t *
+opencl_kernel_loadmap_map_entry_new
 (
- uint64_t context,
- uint32_t context_id
+ uint64_t kernel_name_id,
+ uint32_t module_id
 )
 {
-  opencl_context_map_entry_t *e = opencl_cl_context_map_entry_alloc();
+  opencl_kernel_loadmap_map_entry_t *e = opencl_kernel_loadmap_map_entry_alloc();
 
-  e->context = context;
-  e->context_id = context_id;
-  
+  e->kernel_name_id = kernel_name_id;
+  e->module_id = module_id;
   return e;
 }
 
@@ -157,75 +156,79 @@ opencl_cl_context_map_entry_new
 // interface operations
 //*****************************************************************************
 
-opencl_context_map_entry_t *
-opencl_cl_context_map_lookup
+opencl_kernel_loadmap_map_entry_t *
+opencl_kernel_loadmap_map_lookup
 (
- uint64_t context
+ uint64_t kernel_name_id
 )
 {
-  spinlock_lock(&opencl_context_map_lock);
+  spinlock_lock(&opencl_kernel_loadmap_map_lock);
 
-  uint64_t id = context;
-  opencl_context_map_entry_t *result = st_lookup(&map_root, id);
+  uint64_t id = kernel_name_id;
+  opencl_kernel_loadmap_map_entry_t *result = st_lookup(&map_root, id);
 
-  spinlock_unlock(&opencl_context_map_lock);
+  spinlock_unlock(&opencl_kernel_loadmap_map_lock);
 
   return result;
 }
 
 
-uint32_t
-opencl_cl_context_map_update
+void
+opencl_kernel_loadmap_map_insert
 (
- uint64_t context
+ uint64_t kernel_name_id,
+ uint32_t module_id
 )
 {
-  spinlock_lock(&opencl_context_map_lock);
+  spinlock_lock(&opencl_kernel_loadmap_map_lock);
 
-  uint32_t ret_context_id = 0;
-
-  opencl_context_map_entry_t *entry = st_lookup(&map_root, context);
+  opencl_kernel_loadmap_map_entry_t *entry = st_lookup(&map_root, kernel_name_id);
   if (entry) {
-    entry->context = context;
-    entry->context_id = cl_context_id;
+    entry->kernel_name_id = kernel_name_id;
+    entry->module_id = module_id;
   } else {
-    opencl_context_map_entry_t *entry = 
-      opencl_cl_context_map_entry_new(context, cl_context_id);
+    opencl_kernel_loadmap_map_entry_t *entry = 
+      opencl_kernel_loadmap_map_entry_new(kernel_name_id, module_id);
 
     st_insert(&map_root, entry);
   }
-    
-  // Update cl_context_id
-  ret_context_id = cl_context_id++;
 
-  spinlock_unlock(&opencl_context_map_lock);
-
-  return ret_context_id;
+  spinlock_unlock(&opencl_kernel_loadmap_map_lock);
 }
 
 
 void
-opencl_cl_context_map_delete
+opencl_kernel_loadmap_map_delete
 (
- uint64_t context
+ uint64_t kernel_name_id
 )
 {
-  spinlock_lock(&opencl_context_map_lock);
+  spinlock_lock(&opencl_kernel_loadmap_map_lock);
 
-  opencl_context_map_entry_t *node = st_delete(&map_root, context);
+  opencl_kernel_loadmap_map_entry_t *node = st_delete(&map_root, kernel_name_id);
   st_free(&free_list, node);
 
-  spinlock_unlock(&opencl_context_map_lock);
+  spinlock_unlock(&opencl_kernel_loadmap_map_lock);
+}
+
+
+uint64_t
+opencl_kernel_loadmap_map_entry_kernel_name_id_get
+(
+ opencl_kernel_loadmap_map_entry_t *entry
+)
+{
+  return entry->kernel_name_id;
 }
 
 
 uint32_t
-opencl_cl_context_map_entry_context_id_get
+opencl_kernel_loadmap_map_entry_module_id_get
 (
- opencl_context_map_entry_t *entry
+ opencl_kernel_loadmap_map_entry_t *entry
 )
 {
-  return entry->context_id;
+  return entry->module_id;
 }
 
 
@@ -235,11 +238,10 @@ opencl_cl_context_map_entry_context_id_get
 //*****************************************************************************
 
 uint64_t
-opencl_cl_context_map_count
+opencl_kernel_loadmap_map_count
 (
  void
 )
 {
   return st_count(map_root);
 }
-

@@ -9,7 +9,7 @@
 // HPCToolkit is at 'hpctoolkit.org' and in 'README.Acknowledgments'.
 // --------------------------------------------------------------------------
 //
-// Copyright ((c)) 2002-2021, Rice University
+// Copyright ((c)) 2002-2020, Rice University
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,92 +41,63 @@
 //
 // ******************************************************* EndRiceCopyright *
 
-#ifndef gpu_instrumentation_gtpin_instrumentation_h
-#define gpu_instrumentation_gtpin_instrumentation_h
-
-//******************************************************************************
-// local includes
-//******************************************************************************
-
-#include "simdgroup-map.h"
+#ifndef queue_context_map_h
+#define queue_context_map_h
 
 
+//*****************************************************************************
+// system includes
+//*****************************************************************************
 
-//******************************************************************************
-// type definitions
-//******************************************************************************
-
-typedef struct gpu_op_ccts_t gpu_op_ccts_t;
-
-
-typedef struct LatencyDataInternal
-{
-    uint32_t _freq;    ///< Kernel frequency
-    uint32_t _cycles;  ///< Total number of cycles
-    uint32_t _skipped; ///< Total number of skipped cycles
-    uint32_t _pad;     ///< Padding
-} LatencyDataInternal;
-
-
-typedef struct SimdGroupNode {
-  uint64_t key;
-  simdgroup_map_entry_t *entry;
-  GTPinMem mem_simd;
-  uint32_t instCount;
-  struct SimdGroupNode *next;
-} SimdGroupNode;
-
-
-typedef struct SimdSectionNode {
-  SimdGroupNode *groupHead;
-  struct SimdSectionNode *next;
-} SimdSectionNode;
+#include <stdint.h>
 
 
 
-//******************************************************************************
+//*****************************************************************************
+// type definitions 
+//*****************************************************************************
+
+typedef struct queue_context_map_entry_t queue_context_map_entry_t;
+
+//*****************************************************************************
 // interface operations
-//******************************************************************************
+//*****************************************************************************
 
-void
-gtpin_enable_profiling
+queue_context_map_entry_t *
+queue_context_map_lookup
 (
- void
+ uint64_t
 );
 
 
 void
-gtpin_produce_runtime_callstack
+queue_context_map_insert
 (
- gpu_op_ccts_t *
+ uint64_t, 
+ uint64_t
 );
 
 
 void
-gtpin_enable_instrumentation
+queue_context_map_delete
 (
- void
+ uint64_t
 );
 
 
-void
-gtpin_simd_enable
+uint64_t
+queue_context_map_entry_queue_id_get
 (
- void
+ queue_context_map_entry_t *entry
 );
 
 
-void
-gtpin_latency_enable
+uint64_t
+queue_context_map_entry_context_id_get
 (
- void
+ queue_context_map_entry_t *
 );
 
 
-void
-gtpin_count_enable
-(
- void
-);
+#endif  // queue_context_map_h
 
-#endif

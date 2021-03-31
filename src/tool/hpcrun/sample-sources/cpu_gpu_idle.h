@@ -2,6 +2,9 @@
 
 // * BeginRiceCopyright *****************************************************
 //
+// $HeadURL: https://outreach.scidac.gov/svn/hpctoolkit/branches/hpctoolkit-gpu-blame-shift-proto/src/tool/hpcrun/sample-sources/gpu_blame.h $
+// $Id: itimer.c 3784 2012-05-10 22:35:51Z mc29 $
+//
 // --------------------------------------------------------------------------
 // Part of HPCToolkit (hpctoolkit.org)
 //
@@ -39,94 +42,36 @@
 // or otherwise) arising in any way out of the use of this software, even
 // if advised of the possibility of such damage.
 //
-// ******************************************************* EndRiceCopyright *
+// **
 
-#ifndef gpu_instrumentation_gtpin_instrumentation_h
-#define gpu_instrumentation_gtpin_instrumentation_h
+#ifndef __GPU_BLAME_H__
+#define __GPU_BLAME_H__
+#include <cuda.h>
+#include <cuda_runtime.h>
 
-//******************************************************************************
-// local includes
-//******************************************************************************
+//#ifdef ENABLE_CUDA
 
-#include "simdgroup-map.h"
+//#include "gpu_blame-cuda-runtime-header.h"
+//#include "gpu_blame-cuda-driver-header.h"
+#include <lib/prof-lean/stdatomic.h>		// atomic_uint_fast64_t
+#include <hpcrun/core_profile_trace_data.h>
+#include <hpcrun/main.h>
 
+//
+// Blame shiting interface
+//
+#define MAX_STREAMS (500)
 
+// Visible types
 
-//******************************************************************************
-// type definitions
-//******************************************************************************
+extern bool g_cpu_gpu_enabled;
 
-typedef struct gpu_op_ccts_t gpu_op_ccts_t;
+// num threads in the process
+extern atomic_uint_fast64_t g_active_threads;
 
+// Visible function declarations
+extern  void hpcrun_stream_finalize(void* st);
+extern void hpcrun_set_gpu_proxy_present();
 
-typedef struct LatencyDataInternal
-{
-    uint32_t _freq;    ///< Kernel frequency
-    uint32_t _cycles;  ///< Total number of cycles
-    uint32_t _skipped; ///< Total number of skipped cycles
-    uint32_t _pad;     ///< Padding
-} LatencyDataInternal;
-
-
-typedef struct SimdGroupNode {
-  uint64_t key;
-  simdgroup_map_entry_t *entry;
-  GTPinMem mem_simd;
-  uint32_t instCount;
-  struct SimdGroupNode *next;
-} SimdGroupNode;
-
-
-typedef struct SimdSectionNode {
-  SimdGroupNode *groupHead;
-  struct SimdSectionNode *next;
-} SimdSectionNode;
-
-
-
-//******************************************************************************
-// interface operations
-//******************************************************************************
-
-void
-gtpin_enable_profiling
-(
- void
-);
-
-
-void
-gtpin_produce_runtime_callstack
-(
- gpu_op_ccts_t *
-);
-
-
-void
-gtpin_enable_instrumentation
-(
- void
-);
-
-
-void
-gtpin_simd_enable
-(
- void
-);
-
-
-void
-gtpin_latency_enable
-(
- void
-);
-
-
-void
-gtpin_count_enable
-(
- void
-);
-
+//#endif
 #endif
