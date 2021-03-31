@@ -209,14 +209,15 @@ private:
 
   //help collect cct major data 
   std::vector<uint64_t> ctx_nzval_cnts1;
-  std::vector<std::set<uint16_t>> ctx_nzmids1;
+  //std::vector<std::set<uint16_t>> ctx_nzmids1;
+  std::vector<uint16_t> ctx_nzmids_cnts;
   class udContext {
   public:
     udContext(const hpctoolkit::Context&, SparseDB&) : cnt(0) {};
     ~udContext() = default;
 
     std::atomic<uint64_t> cnt;
-    std::vector<std::set<uint16_t>> nzmids; 
+    //std::vector<std::set<uint16_t>> nzmids; // util::locked_unordered_set<uint16_t>
   };
 
   struct{
@@ -414,6 +415,8 @@ private:
   void writeCtxInfoSec(const std::vector<std::set<uint16_t>>& ctx_nzmids,
                        const std::vector<uint64_t>& ctx_off,
                        hpctoolkit::util::File::Instance& ofh);
+  void writeCtxInfoSec1(hpctoolkit::util::File::Instance& ofh);
+
 
   //---------------------------------------------------------------------------
   // ctx offsets
@@ -425,6 +428,7 @@ private:
   std::vector<uint64_t> ctxOffsets(const std::vector<uint64_t>& ctx_val_cnts, 
                                    const std::vector<std::set<uint16_t>>& ctx_nzmids,
                                    const int threads, const int rank);
+  std::vector<uint64_t> ctxOffsets1();
                     
   std::vector<uint32_t> myCtxs(const std::vector<uint64_t>& ctx_off,
                                const int num_ranks,const int rank);
