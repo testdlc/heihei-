@@ -2528,6 +2528,7 @@ void SparseDB::writeCCTMajor1()
 
   //Get context global final offsets for cct.db
   ctx_off1 = std::move(ctxOffsets1());
+  buildCtxGroupList();
   //auto my_ctxs = std::move(myCtxs(ctx_off1, world_size, world_rank));
   updateCtxOffsets(team_size, ctx_off1);
 
