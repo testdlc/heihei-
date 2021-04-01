@@ -2420,7 +2420,7 @@ void SparseDB::rwAllCtxGroup1(std::vector<pms_profile_info_t>& prof_info,
                              const int threads, 
                               std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs)
 {
-  uint32_t idx = ctxGrpIdFetch();
+  uint32_t idx = mpi::World::rank();
   uint32_t num_groups = ctx_group_list.size();
   std::vector<uint32_t> ctx_ids;
 
@@ -2532,6 +2532,7 @@ void SparseDB::writeCCTMajor1()
   //auto my_ctxs = std::move(myCtxs(ctx_off1, world_size, world_rank));
   updateCtxOffsets(team_size, ctx_off1);
 
+  ctxGrpId = world_size;
   accCtxGrp.initialize(ctxGrpId);
 
   //Prepare files to read and write, get the list of profiles
