@@ -225,7 +225,7 @@ void SparseDB::notifyThreadFinal(const Thread::Temporary& tt) {
 
   pi.offset = writeProf(sparse_metrics_bytes, pi.prof_info_idx, mode_reg_thr);
   prof_infos[pi.prof_info_idx - min_prof_info_idx] = std::move(pi);
-///*
+/*
   // Set up the output temporary file.
   stdshim::filesystem::path outfile;
   int world_rank;
@@ -245,7 +245,7 @@ void SparseDB::notifyThreadFinal(const Thread::Temporary& tt) {
   std::fclose(of);
 
   // Log the output for posterity
-  outputs.emplace(&t, std::move(outfile));//*/
+  outputs.emplace(&t, std::move(outfile));*/
 }
 
 void SparseDB::write()
@@ -318,7 +318,7 @@ void SparseDB::write()
     sm.mids = mids.data();
     sm.cct_node_ids = cids.data();
     sm.cct_node_idxs = coffsets.data();
-  ///*
+  /*
     // Set up the output temporary file.
     summaryOut = dir / "tmp-summary.sparse-db";
     std::FILE* of = std::fopen(summaryOut.c_str(), "wb");
@@ -328,7 +328,7 @@ void SparseDB::write()
     if(hpcrun_fmt_sparse_metrics_fwrite(&sm, of) != HPCFMT_OK)
       util::log::fatal() << "Error writing out temporary summary sparse-db!";
     std::fclose(of);
-  //*/
+  */
     // Build prof_info
     pms_profile_info_t pi;
     pi.prof_info_idx = 0;
@@ -1663,8 +1663,8 @@ void SparseDB::buildCtxGroupList()
 {
   uint64_t cur_size = 0;
   uint64_t total_size = ctx_off1.back();
-  uint64_t size_limit = std::min<uint64_t>((uint64_t)1024*1024*1024*3, \ 
-                        round(total_size/(5 * mpi::World::size())));
+  uint64_t size_limit = std::min<uint64_t>((uint64_t)1024*1024*1024*3,\
+                        round(total_size/mpi::World::size()));
 
   ctx_group_list.emplace_back(0);
   for(uint i = 0; i < ctx_off1.size() - 1; i++){
@@ -2528,12 +2528,6 @@ void SparseDB::writeCCTMajor1()
 
   //Get context global final offsets for cct.db
   ctx_off1 = std::move(ctxOffsets1());
-  printf("ctxcnt: %d\n", ctxcnt);
-  buildCtxGroupList();
-  for(int i = 0; i < ctx_group_list.size(); i ++){
-    printf("%d ", ctx_group_list[i]);
-  }
-  printf("\n");
   //auto my_ctxs = std::move(myCtxs(ctx_off1, world_size, world_rank));
   updateCtxOffsets(team_size, ctx_off1);
 
@@ -2577,7 +2571,7 @@ void SparseDB::writeCCTMajor1()
 //***************************************************************************
 
 void SparseDB::merge(int threads, bool debug) {
-  
+ /* 
   int world_rank = mpi::World::rank();
   int world_size = mpi::World::size();
 
@@ -2601,7 +2595,7 @@ void SparseDB::merge(int threads, bool debug) {
       printf("%d: %ld != %ld\n", i, ctx_nzval_cnts1[i], ctx_nzval_cnts[i]);
   }
   writeCCTMajor(ctx_nzval_cnts,ctx_nzmids, world_rank, world_size, threads);
-  
+  */
 }
 
 
