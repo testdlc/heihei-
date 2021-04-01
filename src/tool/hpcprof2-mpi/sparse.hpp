@@ -157,7 +157,9 @@ private:
   int cur_obuf_idx;
   std::optional<hpctoolkit::util::File> pmf;
   uint64_t fpos;
-  hpctoolkit::mpi::SharedAccumulator acc;
+  uint32_t ctxGrpId;
+  hpctoolkit::mpi::SharedAccumulator accFpos;
+  hpctoolkit::mpi::SharedAccumulator accCtxGrp;
 
   std::atomic<std::size_t> outputCnt;
   int team_size;
@@ -350,6 +352,8 @@ private:
   #define SPARSE_NOT_FOUND -1
   #define SPARSE_END       -2
 
+  std::vector<uint32_t> ctx_group_list; //each number represents the starting ctx id for this group
+
 
   struct PMS_CtxIdIdxPair{
     uint32_t ctx_id;  // = cct node id
@@ -528,6 +532,9 @@ private:
   //---------------------------------------------------------------------------
   // read and write for all contexts in this rank's list
   //---------------------------------------------------------------------------
+  void buildCtxGroupList();
+
+  uint32_t ctxGrpIdFetch();
 
   void writeOneCtx(const uint32_t& ctx_id, const std::vector<uint64_t>& ctx_off,
                    const CtxMetricBlock& cmb,hpctoolkit::util::File::Instance& ofh);
@@ -550,8 +557,7 @@ private:
                      const hpctoolkit::util::File& ofh);
 
   //read ALL context groups' data and write them out
-  void rwAllCtxGroup1(const std::vector<uint32_t>& my_ctxs, 
-                      std::vector<pms_profile_info_t>& prof_info, 
+  void rwAllCtxGroup1(std::vector<pms_profile_info_t>& prof_info, 
                      const std::vector<uint64_t>& ctx_off, 
                      const int threads,
                       std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
