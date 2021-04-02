@@ -67,7 +67,7 @@ using namespace hpctoolkit;
 SparseDB::SparseDB(const stdshim::filesystem::path& p, int threads) : dir(p), ctxMaxId(0), 
   fpos(0), ctxGrpId(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }), 
   parForCtxs([&](ctxRange& item){ handleItemCtxs(item); }), 
-  parForPd([&](profData& item){ handleItemPd(item); }),
+  parForPd([&](profData& item){ handleItemPd(item); }), 
   parForCiip([&](profCtxIdIdxPairs& item){ handleItemCiip(item); }) {
 
   if(dir.empty())
@@ -1936,7 +1936,7 @@ SparseDB::profilesData1(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_
   }
 
   parForPd.fill(std::move(pds));
-  (void)parForPd.contribute(parForPd.loop());
+  parForPd.contribute(parForPd.wait());
   
   return profiles_data;
 }
@@ -2432,8 +2432,6 @@ void SparseDB::rwAllCtxGroup1(std::vector<pms_profile_info_t>& prof_info,
     rwOneCtxGroup1(ctx_ids, prof_info, ctx_off, threads, all_prof_ctx_pairs);
     idx = ctxGrpIdFetch();
   }
-  parForPd.complete();
-  parForPd.contribute(parForPd.wait());
 
 /*
   if(my_ctxs.size() == 0) return;

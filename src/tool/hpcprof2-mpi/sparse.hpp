@@ -205,7 +205,7 @@ private:
   struct ctxRange;
   hpctoolkit::util::ParallelForEach<ctxRange> parForCtxs;
   struct profData;
-  hpctoolkit::util::RepeatingParallelForEach<profData> parForPd;
+  hpctoolkit::util::ParallelForEach<profData> parForPd;
   struct profCtxIdIdxPairs;
   hpctoolkit::util::ParallelForEach<profCtxIdIdxPairs> parForCiip;
 
