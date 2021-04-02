@@ -1936,7 +1936,7 @@ SparseDB::profilesData1(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_
   }
 
   parForPd.fill(std::move(pds));
-  parForPd.contribute(parForPd.wait());
+  parForPd.reset();  // Also waits for work to complete
   
   return profiles_data;
 }
@@ -2432,6 +2432,8 @@ void SparseDB::rwAllCtxGroup1(std::vector<pms_profile_info_t>& prof_info,
     rwOneCtxGroup1(ctx_ids, prof_info, ctx_off, threads, all_prof_ctx_pairs);
     idx = ctxGrpIdFetch();
   }
+  parForPd.fill({});  // Make sure the workshare is non-empty
+  parForPd.complete();
 
 /*
   if(my_ctxs.size() == 0) return;
