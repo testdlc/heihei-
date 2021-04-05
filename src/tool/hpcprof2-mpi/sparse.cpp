@@ -64,23 +64,13 @@
 
 using namespace hpctoolkit;
 
-SparseDB::SparseDB(const stdshim::filesystem::path& p, int threads) : dir(p), ctxMaxId(0), 
-  fpos(0), ctxGrpId(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }), 
-  parForCtxs([&](ctxRange& item){ handleItemCtxs(item); }), 
-  parForPd([&](profData& item){ handleItemPd(item); }), 
-  parForCiip([&](profCtxIdIdxPairs& item){ handleItemCiip(item); }) {
-
-  if(dir.empty())
-    util::log::fatal{} << "SparseDB doesn't allow for dry runs!";
-  else
-    stdshim::filesystem::create_directory(dir);
-}
-
-SparseDB::SparseDB(stdshim::filesystem::path&& p, int threads) : dir(std::move(p)), ctxMaxId(0), 
-  fpos(0), ctxGrpId(0), outputCnt(0), team_size(threads), parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }),
-  parForCtxs([&](ctxRange& item){ handleItemCtxs(item); }), 
-  parForPd([&](profData& item){ handleItemPd(item); }), 
-  parForCiip([&](profCtxIdIdxPairs& item){ handleItemCiip(item); })   {
+SparseDB::SparseDB(stdshim::filesystem::path p, int threads)
+  : dir(std::move(p)), ctxMaxId(0), fpos(0), ctxGrpId(0), accFpos(1000),
+    accCtxGrp(1001), outputCnt(0), team_size(threads),
+    parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }),
+    parForCtxs([&](ctxRange& item){ handleItemCtxs(item); }),
+    parForPd([&](profData& item){ handleItemPd(item); }),
+    parForCiip([&](profCtxIdIdxPairs& item){ handleItemCiip(item); }) {
 
   if(dir.empty())
     util::log::fatal{} << "SparseDB doesn't allow for dry runs!";
