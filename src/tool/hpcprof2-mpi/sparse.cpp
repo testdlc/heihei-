@@ -1664,7 +1664,7 @@ void SparseDB::buildCtxGroupList()
   uint64_t cur_size = 0;
   uint64_t total_size = ctx_off1.back();
   uint64_t size_limit = std::min<uint64_t>((uint64_t)1024*1024*1024*3,\
-                        round(total_size/mpi::World::size()));
+                        round(total_size/(5 * mpi::World::size()));
 
   ctx_group_list.emplace_back(0);
   for(uint i = 0; i < ctx_off1.size() - 1; i++){
