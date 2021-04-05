@@ -83,9 +83,7 @@ util::WorkshareResult SparseDB::help() {
   if(!res.completed) return res;
   res = parForCiip.contribute();
   if(!res.completed) return res;
-  res = parForPd.contribute();
-  if(!res.completed) return res;
-  return parForCtxs.contribute();
+  return parForPd.contribute() + parForCtxs.contribute();
 }
 
 void SparseDB::notifyPipeline() noexcept {
