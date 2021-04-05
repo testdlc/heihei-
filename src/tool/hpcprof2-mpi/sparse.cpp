@@ -1081,7 +1081,7 @@ uint64_t SparseDB::writeProf(const std::vector<char>& prof_bytes, uint32_t prof_
 
     // take care all previous profs in buffer
     bool write = false;
-    if((prof_bytes.size() + ob.cur_pos) >= (1024 * 1024 * 1024)){ 
+    if((prof_bytes.size() + ob.cur_pos) >= (1024 * 1024)){
       cur_obuf_idx = 1 - cur_obuf_idx;
       write = true;
 
