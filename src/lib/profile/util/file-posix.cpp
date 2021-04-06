@@ -78,8 +78,9 @@ File::File(stdshim::filesystem::path path, bool create) noexcept
 }
 
 struct InstanceUD {
-  InstanceUD(FILE* p) : filep(p) {};
+  InstanceUD(FILE* p) : filep(p), offset(0) {};
   FILE* filep;
+  std::uint_fast64_t offset;
 };
 template<class T>
 static InstanceUD* udI(T& p) { return (InstanceUD*)p.get(); }
@@ -99,8 +100,10 @@ File::Instance::~Instance() {
 
 void File::Instance::readat(std::uint_fast64_t offset, std::size_t size, void* buf) noexcept {
   if(!data) util::log::fatal{} << "Attempt to call readat on an empty File::Instance!";
-  fseeko(udI(data)->filep, offset, SEEK_SET);
+  if(offset != udI(data)->offset)
+    fseeko(udI(data)->filep, offset, SEEK_SET);
   auto cnt = std::fread(buf, 1, size, udI(data)->filep);
+  udI(data)->offset = offset + cnt;
   if(cnt < size) {
     if(ferror(udI(data)->filep))
       util::log::fatal{} << "Error during read: I/O error";
@@ -112,8 +115,10 @@ void File::Instance::readat(std::uint_fast64_t offset, std::size_t size, void* b
 
 void File::Instance::writeat(std::uint_fast64_t offset, std::size_t size, const void* buf) noexcept {
   if(!data) util::log::fatal{} << "Attempt to call writeat on an empty File::Instance!";
-  fseeko(udI(data)->filep, offset, SEEK_SET);
+  if(offset != udI(data)->offset)
+    fseeko(udI(data)->filep, offset, SEEK_SET);
   auto cnt = std::fwrite(buf, 1, size, udI(data)->filep);
+  udI(data)->offset = offset + cnt;
   if(cnt < size) {
     if(ferror(udI(data)->filep))
       util::log::fatal{} << "Error during write: I/O error";
