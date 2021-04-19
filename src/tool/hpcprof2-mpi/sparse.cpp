@@ -233,6 +233,7 @@ void SparseDB::notifyThreadFinal(const Thread::Temporary& tt) {
     util::log::fatal() << "Error writing out temporary sparse-db!";
   std::fclose(of);
 
+
   // Log the output for posterity
   outputs.emplace(&t, std::move(outfile));
   */
