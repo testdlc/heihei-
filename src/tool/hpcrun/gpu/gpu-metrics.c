@@ -484,10 +484,9 @@ gpu_metrics_attribute_kernel_block
   if (b->instruction) {
     // calculations at instruction level
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_LATENCY), b->latency);
+    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_EXEC_COUNT), b->execution_count);
   } else {
     // calculations at basic block level
-    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_EXEC_COUNT), b->execution_count);
-
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_ACT_SIMD_LANES), b->active_simd_lanes);
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_TOT_SIMD_LANES), b->total_simd_lanes);
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_WASTE_SIMD_LANES), b->total_simd_lanes - b->active_simd_lanes);

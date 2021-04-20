@@ -56,9 +56,10 @@
 #include "lib/profile/sources/packed.hpp"
 #include "lib/profile/sinks/experimentxml4.hpp"
 #include "lib/profile/sinks/hpctracedb2.hpp"
-#include "lib/profile/sinks/intel-advisor.hpp"
+//#include "lib/profile/sinks/intel-advisor.hpp"
 #include "lib/profile/finalizers/denseids.hpp"
 #include "lib/profile/finalizers/directclassification.hpp"
+#include "lib/profile/finalizers/intel_def_use_graph.hpp"
 #include "lib/profile/transformer.hpp"
 #include "lib/profile/util/log.hpp"
 #include "lib/profile/mpi/all.hpp"
@@ -105,11 +106,17 @@ int rank0(ProfArgs&& args) {
   finalizers::DirectClassification dc(args.dwarfMaxSize);
   pipelineB << dc;
 
+  // Finalizer for filling intel def-use graph directly from the Modules.
+  finalizers::IntelDefUseGraphClassification du_graph;
+  pipelineB << du_graph;
+
   // Now that Modules will be Classified during Finalization, add a Transformer
   // to expand the Contexts as they enter the Pipe.
   RouteExpansionTransformer retrans;
   ClassificationTransformer ctrans;
+  DefUseTransformer dutrans;
   pipelineB << retrans << ctrans;
+  pipelineB << dutrans;
 
   // Ids for everything are pulled from the void. We call the shots here.
   finalizers::DenseIds dids;
@@ -188,9 +195,6 @@ int rank0(ProfArgs&& args) {
        if(!args.instructionGrain)
          pipelineB << make_unique_x<LineMergeTransformer>();
        break;
-     } case ProfArgs::Format::intel_advisor: {
-       auto intel_advisor = make_unique_x<sinks::IntelAdvisor>(args.output, args.include_sources);
-       pipelineB << std::move(intel_advisor);
      }
   }
 

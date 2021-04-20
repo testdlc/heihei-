@@ -180,8 +180,8 @@ SuperpositionedContext::SuperpositionedContext(Context& root, std::vector<Target
     util::log::fatal{} << "Attempt to create a Superposition with inconsistent collaborations between Targets!";
 }
 
-SuperpositionedContext::Target::Target(std::vector<ContextRef> r, ContextRef t)
-  : route(std::move(r)), target(t) {
+SuperpositionedContext::Target::Target(std::vector<ContextRef> r, ContextRef t, double factor)
+  : route(std::move(r)), target(t), factor(factor) {
   if(std::holds_alternative<CollaborativeContext>(t))
     util::log::fatal{} << "Attempt to create a Superposition target targeting a collaborative root!";
   if(std::any_of(route.begin(), route.end(), [&](const auto& r) {
