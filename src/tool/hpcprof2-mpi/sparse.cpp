@@ -121,6 +121,7 @@ void SparseDB::notifyWavefront(DataClass d) noexcept {
   id_tuples_sec_ptr = prof_info_sec_ptr + MULTIPLE_8(prof_info_sec_size);
 
   pmf = util::File(dir / "profile1.db", true);
+  pmf->synchronize();
 
   // write id_tuples, set id_tuples_sec_size for hdr
   workIdTuplesSection1(total_num_prof);
@@ -2542,6 +2543,7 @@ void SparseDB::writeCCTMajor1()
 
   //Prepare files to read and write, get the list of profiles
   cmf = util::File(dir / "cct1.db", true);
+  cmf->synchronize();
   
   if(world_rank == 0){
     auto cct_major_fi = cmf->open(true, true);
