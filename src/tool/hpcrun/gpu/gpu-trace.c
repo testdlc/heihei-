@@ -47,7 +47,6 @@
 
 #include <assert.h>
 #include <pthread.h>
-#include <unistd.h>
 
 
 
@@ -68,7 +67,6 @@
 #include <hpcrun/cct/cct.h>
 #include <hpcrun/utilities/hpcrun-nanotime.h>
 #include <hpcrun/control-knob.h>
-#include <hpcrun/rank.h>
 #include <hpcrun/thread_data.h>
 #include <hpcrun/threadmgr.h>
 #include <hpcrun/trace.h>
@@ -102,7 +100,6 @@
 typedef struct gpu_trace_t {
   pthread_t thread;
   gpu_trace_channel_t *trace_channel;
-  gpu_tag_t tag;
 } gpu_trace_t;
 
 typedef struct gpu_stream_set_t {
@@ -155,17 +152,11 @@ stream_start_get
 static gpu_trace_t *
 gpu_trace_alloc
 (
- uint32_t device_id,
- uint32_t context_id,
- uint32_t stream_id
+ void
 )
 {
   gpu_trace_t *trace = hpcrun_malloc_safe(sizeof(gpu_trace_t));
-  trace->tag.device_id = device_id;
-  trace->tag.context_id = context_id;
-  trace->tag.stream_id = stream_id;
-
-  trace->trace_channel = gpu_trace_channel_alloc(trace->tag);
+  trace->trace_channel = gpu_trace_channel_alloc();
   return trace;
 }
 
@@ -273,41 +264,10 @@ gpu_trace_stream_id
 }
 
 
-static void
-gpu_compute_profile_name
-(
- gpu_tag_t tag,
- core_profile_trace_data_t * cptd
-)
-{
-  pms_id_t ids[IDTUPLE_MAXTYPES];
-  id_tuple_t id_tuple;
-
-  id_tuple_constructor(&id_tuple, ids, IDTUPLE_MAXTYPES);
-
-  id_tuple_push_back(&id_tuple, IDTUPLE_NODE, gethostid());
-
-#if 0
-  if (tag.device_id != IDTUPLE_INVALID) {
-    id_tuple_push_back(&id_tuple, IDTUPLE_GPUDEVICE, tag.device_id);
-  }
-#endif
-
-  int rank = hpcrun_get_rank();
-  if (rank >= 0) id_tuple_push_back(&id_tuple, IDTUPLE_RANK, rank);
-
-  id_tuple_push_back(&id_tuple, IDTUPLE_GPUCONTEXT, tag.context_id);
-
-  id_tuple_push_back(&id_tuple, IDTUPLE_GPUSTREAM, tag.stream_id);
-
-  id_tuple_copy(&cptd->id_tuple, &id_tuple, hpcrun_malloc);
-}
-
-
 thread_data_t *
 gpu_trace_stream_acquire
 (
- gpu_tag_t tag
+ void
 )
 {
   bool demand_new_thread = true;
@@ -320,8 +280,6 @@ gpu_trace_stream_acquire
   // XXX(Keren): This API calls allocate_and_init_thread_data to bind td with the current thread
 
   hpcrun_threadMgr_data_get_safe(id, NULL, &td, has_trace, demand_new_thread);
-
-  gpu_compute_profile_name(tag, &td->core_profile_trace_data);
 
   return td;
 }
@@ -384,9 +342,6 @@ gpu_trace_record
 {
   gpu_trace_channel_set_t *channel_set = (gpu_trace_channel_set_t *) args;
 
-  hpcrun_thread_init_mem_pool_once();
-  atomic_fetch_add(&active_streams_counter, 1);
-
   while (!atomic_load(&stop_trace_flag)) {
     //getting data from a trace channel
     gpu_trace_channel_set_process(channel_set);
@@ -402,15 +357,19 @@ gpu_trace_record
 gpu_trace_t *
 gpu_trace_create
 (
- uint32_t device_id,
- uint32_t context_id,
- uint32_t stream_id
+ void
 )
 {
   // Init variables
   gpu_trace_t *trace = gpu_trace_alloc();
 
+  // Create a new thread for the stream without libmonitor watching
+  monitor_disable_new_threads();
+
   trace->thread = gpu_trace_demultiplexer_push(trace->trace_channel);
+  atomic_fetch_add(&active_streams_counter, 1);
+
+  monitor_enable_new_threads();
 
   return trace;
 }
