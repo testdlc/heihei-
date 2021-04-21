@@ -85,7 +85,7 @@
   macro(GTIMES, 10)  \
   macro(KINFO, 12)  \
   macro(GSAMP, 13)  \
-  macro(BLAME_SHIFT, 14) \
+  macro(BLAME_SHIFT, 14)  \
   macro(INTEL_OPTIMIZATION, 15)
 
 
@@ -481,19 +481,16 @@ gpu_metrics_attribute_kernel_block
   metric_data_list_t *metrics = 
     hpcrun_reify_metric_set(cct_node, METRIC_ID(GPU_INST_EXEC_COUNT));
 
+  // avg count of cycles taken by ALU to execute an instruction
+  int ALU_cycles = 1;
+
   if (b->instruction) {
     // calculations at instruction level
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_LATENCY), b->latency);
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_EXEC_COUNT), b->execution_count);
-  } else {
-    // calculations at basic block level
-    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_ACT_SIMD_LANES), b->active_simd_lanes);
-    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_TOT_SIMD_LANES), b->total_simd_lanes);
-    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_WASTE_SIMD_LANES), b->total_simd_lanes - b->active_simd_lanes);
-    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_SCALAR_SIMD_LOSS), b->scalar_simd_loss);
-    
+
     uint64_t covered_latency = (b->latency <= 0) ?
-                                    0: (b->bb_instruction_count * b->execution_count);
+                                    0: (ALU_cycles * b->execution_count);
     uint64_t uncovered_latency = (b->latency <= 0) ? 
                                     0: (b->latency - covered_latency);
     long thr_needed_for_covering_latency = (covered_latency == 0 || uncovered_latency == 0) ? 
@@ -501,6 +498,12 @@ gpu_metrics_attribute_kernel_block
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_COVERED_LATENCY), covered_latency);
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_UNCOVERED_LATENCY), uncovered_latency);
     gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_THR_NEEDED_FOR_COVERING_LATENCY), thr_needed_for_covering_latency);
+  } else {
+    // calculations at basic block level
+    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_ACT_SIMD_LANES), b->active_simd_lanes);
+    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_TOT_SIMD_LANES), b->total_simd_lanes);
+    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_WASTE_SIMD_LANES), b->total_simd_lanes - b->active_simd_lanes);
+    gpu_metrics_attribute_metric_int(metrics, METRIC_ID(GPU_INST_SCALAR_SIMD_LOSS), b->scalar_simd_loss);
   }
 }
 
@@ -977,6 +980,8 @@ gpu_metrics_BLAME_SHIFT_enable
   INITIALIZE_METRIC_KIND();
 
   FORALL_BLAME_SHIFT(INITIALIZE_SCALAR_METRIC_REAL)
+
+  FINALIZE_METRIC_KIND();
 }
 
 

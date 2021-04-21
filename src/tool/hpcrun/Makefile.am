@@ -534,7 +534,9 @@ MY_OPENCL_FILES = \
 	gpu/opencl/opencl-h2d-map.c \
 	gpu/opencl/opencl-queue-map.c \
 	gpu/opencl/opencl-context-map.c \
+	\
 	gpu/blame-shifting/opencl/opencl-blame.c \
+	\
 	gpu/opencl/intel/optimization-check.c \
 	gpu/opencl/opencl-kernel-loadmap-map.c \
 	gpu/opencl/intel/maps/queue-context-map.c \

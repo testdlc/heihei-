@@ -313,8 +313,7 @@ findOrAddKernelModule
   char kernel_name[kernel_name_len];
   status = HPCRUN_GTPIN_CALL(GTPin_KernelGetName,
 			     (kernel, kernel_name_len, kernel_name, NULL));
-  
-  assert(status == GTPINTOOL_STATUS_SUCCESS);
+  ASSERT_GTPIN_STATUS(status);
 
   uint32_t kernel_elf_size = 0;
   status = HPCRUN_GTPIN_CALL(GTPin_GetElf, (kernel, 0, NULL, &kernel_elf_size));
@@ -467,7 +466,7 @@ kernelInstructionActivityProcess
  uint64_t correlation_id,
  uint32_t loadmap_module_id,
  uint64_t offset,
- uint64_t bb_execution_count,
+ uint64_t execution_count,
  uint64_t inst_latency,
  gpu_activity_channel_t *activity_channel,
  cct_node_t *host_op_node
@@ -475,7 +474,7 @@ kernelInstructionActivityProcess
 {
   gpu_activity_t ga;
   kernelActivityTranslate(&ga, correlation_id, loadmap_module_id, offset, true,
-      0, bb_execution_count, inst_latency, 0, 0, 0);
+      0, execution_count, inst_latency, 0, 0, 0);
 
   ip_normalized_t ip = ga.details.kernel_block.pc;
   cct_node_t *cct_child = hpcrun_cct_insert_ip_norm(host_op_node, ip); // how to set the ip_norm
@@ -492,9 +491,6 @@ kernelBlockActivityProcess
  uint64_t correlation_id,
  uint32_t loadmap_module_id,
  uint64_t offset,
- uint32_t bb_instruction_count,
- uint64_t bb_execution_count,
- uint64_t bb_latency_cycles,
  uint64_t bb_active_simd_lanes,
  uint64_t bb_total_simd_lanes,
  uint64_t scalar_simd_loss,
@@ -504,7 +500,7 @@ kernelBlockActivityProcess
 {
   gpu_activity_t ga;
   kernelActivityTranslate(&ga, correlation_id, loadmap_module_id, offset, false,
-      bb_instruction_count, bb_execution_count, bb_latency_cycles, bb_active_simd_lanes, bb_total_simd_lanes, scalar_simd_loss);
+      0, 0, 0, bb_active_simd_lanes, bb_total_simd_lanes, scalar_simd_loss);
 
   ip_normalized_t ip = ga.details.kernel_block.pc;
   cct_node_t *cct_child = hpcrun_cct_insert_ip_norm(host_op_node, ip); // how to set the ip_norm
@@ -1032,11 +1028,12 @@ onKernelComplete
 
     kernel_data_gtpin_inst_t *inst = block->inst;
     kernelBlockActivityProcess(correlation_id, kernel_data.loadmap_module_id,
-        inst->offset, block->instruction_count, bb_exec_count, bb_latency_cycles,
-        bb_active_simd_lanes, bb_total_simd_lanes, scalar_simd_loss, activity_channel, host_op_node);
+        inst->offset, bb_active_simd_lanes, bb_total_simd_lanes, scalar_simd_loss,
+        activity_channel, host_op_node);
     while (inst != NULL) {
       kernelInstructionActivityProcess(correlation_id, kernel_data.loadmap_module_id,
-        inst->offset, bb_exec_count, inst->aggregated_latency, activity_channel, host_op_node);
+        inst->offset, bb_exec_count, inst->aggregated_latency,
+        activity_channel, host_op_node);
       inst = inst->next;
     }
     block = block->next;
@@ -1137,3 +1134,4 @@ gtpin_count_enable
 {
   count_knob = true;
 }
+

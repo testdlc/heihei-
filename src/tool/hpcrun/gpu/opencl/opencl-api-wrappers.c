@@ -243,16 +243,6 @@ clWaitForEvents
 
 
 cl_int
-clFinish
-(
-	cl_command_queue command_queue
-)
-{
-	return hpcrun_clFinish(command_queue);
-}
-
-
-cl_int
 clSetKernelArg
 (
  cl_kernel kernel,
@@ -272,6 +262,16 @@ clReleaseMemObject
 )
 {
   return hpcrun_clReleaseMemObject(mem);
+}
+
+
+cl_int
+clFinish
+(
+	cl_command_queue command_queue
+)
+{
+	return hpcrun_clFinish(command_queue);
 }
 
 

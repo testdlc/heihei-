@@ -1451,7 +1451,7 @@ hpcrun_clWaitForEvents
 cl_int
 hpcrun_clFinish
 (
-	cl_command_queue command_queue
+ cl_command_queue command_queue
 )
 {
   ETMSG(OPENCL, "clFinish called");

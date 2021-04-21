@@ -2040,7 +2040,9 @@ MY_AARCH64_FILES = \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/opencl-h2d-map.c \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/opencl-queue-map.c \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/opencl-context-map.c \
+@OPT_ENABLE_OPENCL_TRUE@	\
 @OPT_ENABLE_OPENCL_TRUE@	gpu/blame-shifting/opencl/opencl-blame.c \
+@OPT_ENABLE_OPENCL_TRUE@	\
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/optimization-check.c \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/opencl-kernel-loadmap-map.c \
 @OPT_ENABLE_OPENCL_TRUE@	gpu/opencl/intel/maps/queue-context-map.c \
