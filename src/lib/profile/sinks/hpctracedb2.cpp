@@ -86,6 +86,7 @@ HPCTraceDB2::udThread::udThread(const Thread& t, HPCTraceDB2& tdb)
     tmcntr(0) {}
 
 void HPCTraceDB2::notifyWavefront(DataClass d){
+  //util::log::debug{true} << "TraceDB wave " << d;
   if(!d.hasThreads()) return;
   auto wd_sem = threadsReady.signal();
   std::FILE* trace_f = nullptr;

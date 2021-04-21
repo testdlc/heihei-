@@ -287,6 +287,8 @@ typedef enum {
 	"GPU instruction/basic-block execution count")  \
   macro(GPU_INST_METRIC_NAME ": LAT(cycles)", GPU_INST_LATENCY,	\
 	"GPU instruction latency")  \
+  macro(GPU_INST_METRIC_NAME ": LAT_BLAME(cycles)", GPU_INST_LATENCY_BLAME,	\
+	"GPU instruction latency blame")  \
   macro(GPU_INST_METRIC_NAME ": ACT_SIMD", GPU_INST_ACT_SIMD_LANES,	\
 	"GPU active simd lanes")  \
   macro(GPU_INST_METRIC_NAME ": WAST_SIMD", GPU_INST_WASTE_SIMD_LANES,	\
