@@ -61,7 +61,8 @@
 
 
 #include <vector>
-#include <mpi.h>
+
+namespace hpctoolkit::sinks {
 
 class SparseDB : public hpctoolkit::ProfileSink {
 public:
@@ -97,7 +98,7 @@ public:
 
 
   //***************************************************************************
-  // Work with bytes  
+  // Work with bytes
   //***************************************************************************
   void writeAsByte4(uint32_t val, hpctoolkit::util::File::Instance& fh, uint64_t off);
   void writeAsByte8(uint64_t val, hpctoolkit::util::File::Instance& fh, uint64_t off);
@@ -113,7 +114,7 @@ public:
 
 private:
   //***************************************************************************
-  // general 
+  // general
   //***************************************************************************
   #define MULTIPLE_8(v) ((v + 7) & ~7)
 
@@ -127,13 +128,13 @@ private:
   hpctoolkit::util::Once contextWavefront;
 
   //local exscan over a vector of T, value after exscan will be stored in the original vector
-  template<typename T> void exscan(std::vector<T>& data); 
+  template<typename T> void exscan(std::vector<T>& data);
 
-  //binary search over a vector of T, unlike std::binary_search, which only returns true/false, 
+  //binary search over a vector of T, unlike std::binary_search, which only returns true/false,
   //this returns the idx of found one, SPARSE_ERR as NOT FOUND
   template <typename T, typename MemberT>
-  int struct_member_binary_search(const std::vector<T>& datas, const T target, const MemberT target_type, const int length); 
-  
+  int struct_member_binary_search(const std::vector<T>& datas, const T target, const MemberT target_type, const int length);
+
 
   //***************************************************************************
   // profile.db
@@ -181,7 +182,7 @@ private:
   int cur_obuf_idx;
   std::mutex outputs_l;
 
-  //help collect cct major data 
+  //help collect cct major data
   std::vector<uint64_t> ctx_nzval_cnts1;
   std::vector<uint16_t> ctx_nzmids_cnts;
 
@@ -206,7 +207,7 @@ private:
 
 
   //***************************************************************************
-  // cct.db 
+  // cct.db
   //***************************************************************************
   #define SPARSE_NOT_FOUND -1
   #define SPARSE_END       -2
@@ -242,8 +243,8 @@ private:
   hpctoolkit::util::ParallelForEach<profCtxIdIdxPairs> parForCiip;
 
   PMS_CtxIdIdxPair ctxIdIdxPair(const char *input);
-  void handleItemCiip(profCtxIdIdxPairs& ciip);  
-  std::vector<std::vector<SparseDB::PMS_CtxIdIdxPair>> 
+  void handleItemCiip(profCtxIdIdxPairs& ciip);
+  std::vector<std::vector<SparseDB::PMS_CtxIdIdxPair>>
   allProfileCtxIdIdxPairs(std::vector<pms_profile_info_t>& prof_info);
 
 
@@ -262,12 +263,12 @@ private:
                           const uint length, const int round, const int found_ctx_idx,
                           std::vector<std::pair<uint32_t, uint64_t>>& my_ctx_pairs);
 
-  std::vector<std::pair<uint32_t, uint64_t>> myCtxPairs(const std::vector<uint32_t>& ctx_ids, 
+  std::vector<std::pair<uint32_t, uint64_t>> myCtxPairs(const std::vector<uint32_t>& ctx_ids,
                                                         const std::vector<PMS_CtxIdIdxPair>& profile_ctx_pairs);
 
   std::vector<char> valMidsBytes(std::vector<std::pair<uint32_t, uint64_t>>& my_ctx_pairs,
                                  const uint64_t& off);
-                        
+
   void handleItemPd(profData& pd);
 
   std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>>
@@ -285,18 +286,18 @@ private:
     uint32_t ctx_id;
     std::map<uint16_t, MetricValBlock> metrics;
   };
-  
+
   MetricValBlock metValBloc(const hpcrun_metricVal_t val,const uint16_t mid, const uint32_t prof_idx);
   void updateCtxMetBloc(const hpcrun_metricVal_t val, const uint16_t mid,
                         const uint32_t prof_idx, CtxMetricBlock& cmb);
   void interpretValMidsBytes(char *vminput,const uint32_t prof_idx,
                              const std::pair<uint32_t,uint64_t>& ctx_pair,
                              const uint64_t next_ctx_idx,const uint64_t first_ctx_idx,
-                             CtxMetricBlock& cmb); 
+                             CtxMetricBlock& cmb);
 
 
   // helper - convert CtxMetricBlocks to correct bytes for writing
-  std::vector<char> mvbBytes(const MetricValBlock& mvb);                      
+  std::vector<char> mvbBytes(const MetricValBlock& mvb);
   std::vector<char> mvbsBytes(std::map<uint16_t, MetricValBlock>& metrics);
   std::vector<char> metIdIdxPairsBytes(const std::map<uint16_t, MetricValBlock>& metrics);
   std::vector<char> cmbBytes(const CtxMetricBlock& cmb, const uint32_t& ctx_id);
@@ -304,14 +305,14 @@ private:
   // write contexts
   struct nextCtx{
     uint32_t ctx_id;
-    uint32_t prof_idx; 
+    uint32_t prof_idx;
     size_t cursor;
 
     //turn MaxHeap to MinHeap
     bool operator<(const nextCtx& a) const{
       if(ctx_id == a.ctx_id)
         return prof_idx > a.prof_idx;
-      return ctx_id > a.ctx_id;  
+      return ctx_id > a.ctx_id;
     }
   };
 
@@ -323,21 +324,22 @@ private:
     std::vector<uint32_t>* ctx_ids;
     std::vector<pms_profile_info_t>* pis;
   };
-  
+
   std::vector<uint32_t> ctx_group_list; //each number represents the starting ctx id for this group
   uint32_t ctxGrpId;
   hpctoolkit::mpi::SharedAccumulator accCtxGrp;
   hpctoolkit::util::ResettableParallelForEach<ctxRange> parForCtxs;
 
   void handleItemCtxs(ctxRange& cr);
-  void rwOneCtxGroup(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_info_t>& prof_info_list, 
+  void rwOneCtxGroup(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_info_t>& prof_info_list,
                      std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
-  void buildCtxGroupList();                   
-  uint32_t ctxGrpIdFetch();                   
-  void rwAllCtxGroup(std::vector<pms_profile_info_t>& prof_info, 
+  void buildCtxGroupList();
+  uint32_t ctxGrpIdFetch();
+  void rwAllCtxGroup(std::vector<pms_profile_info_t>& prof_info,
                      std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
 
 };
 
+}
 
 #endif  // HPCTOOLKIT_PROF2MPI_SPARSE_H
