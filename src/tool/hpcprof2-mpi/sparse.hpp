@@ -91,7 +91,7 @@ public:
   void notifyWavefront(hpctoolkit::DataClass) noexcept override;
   void notifyThreadFinal(const hpctoolkit::Thread::Temporary&) override;
 
-  void writeCCTMajor1();
+  void writeCCTMajor();
   void merge(int threads, bool debug);
 
 
@@ -119,6 +119,7 @@ private:
 
   hpctoolkit::stdshim::filesystem::path dir;
   int team_size;
+  size_t rank;
 
   std::size_t ctxcnt;
   std::vector<std::reference_wrapper<const hpctoolkit::Context>> contexts;
@@ -126,8 +127,7 @@ private:
   hpctoolkit::util::Once contextWavefront;
 
   //local exscan over a vector of T, value after exscan will be stored in the original vector
-  template<typename T>
-  void exscan(std::vector<T>& data,int threads); 
+  template<typename T> void exscan(std::vector<T>& data); 
 
   //binary search over a vector of T, unlike std::binary_search, which only returns true/false, 
   //this returns the idx of found one, SPARSE_ERR as NOT FOUND
@@ -153,8 +153,9 @@ private:
   void writePMSHdr(const uint32_t total_num_prof, const hpctoolkit::util::File& fh);
 
   //id tuples
-  std::vector<char> convertTuple2Bytes(const pms_id_tuple_t& tuple);
-  void workIdTuplesSection1(const int total_num_prof);
+  std::vector<char> convertTuple2Bytes(const id_tuple_t& tuple);
+  void writeIdTuples(std::vector<id_tuple_t>& id_tuples, uint64_t my_offset);
+  void workIdTuplesSection();
 
   //prof info
   std::vector<uint64_t> id_tuple_ptrs;
@@ -162,6 +163,7 @@ private:
   std::vector<pms_profile_info_t> prof_infos;
   hpctoolkit::util::ParallelForEach<pms_profile_info_t> parForPi;
 
+  void setMinProfInfoIdx(const int total_num_prof);
   void handleItemPi(pms_profile_info_t& pi);
   void writeProfInfos();
 
@@ -196,23 +198,11 @@ private:
     const auto& operator()(hpctoolkit::Context::ud_t&) const noexcept { return context; }
   } ud;
 
-
-
-
-  //---------------------------------------------------------------------------
-  // get profile's real data (bytes)
-  //---------------------------------------------------------------------------
-  #define mode_reg_thr 0
-  #define mode_wrt_nroot 1
-  #define mode_wrt_root 2
-
+  //write profiles
   std::vector<char> profBytes(hpcrun_fmt_sparse_metrics_t* sm);
-
-  uint64_t writeProf(const std::vector<char>& prof_bytes, uint32_t prof_info_idx, int mode); // return relative offset
-
   uint64_t filePosFetchOp(uint64_t val);
-
-
+  void flushOutBuffer(uint64_t wrt_off, OutBuffer& ob);
+  uint64_t writeProf(const std::vector<char>& prof_bytes, uint32_t prof_info_idx);
 
 
   //***************************************************************************
