@@ -211,48 +211,97 @@ private:
   #define SPARSE_NOT_FOUND -1
   #define SPARSE_END       -2
 
-  struct ctxRange;
-  hpctoolkit::util::ResettableParallelForEach<ctxRange> parForCtxs;
-  struct profData;
-  hpctoolkit::util::ResettableParallelForEach<profData> parForPd;
-  struct profCtxIdIdxPairs;
-  hpctoolkit::util::ParallelForEach<profCtxIdIdxPairs> parForCiip;
-
-  std::vector<uint32_t> ctx_group_list; //each number represents the starting ctx id for this group
-
-  uint32_t ctxGrpId;
-  hpctoolkit::mpi::SharedAccumulator accCtxGrp;
-
-
   std::optional<hpctoolkit::util::File> cmf;
-  std::vector<uint64_t> ctx_off1;
 
+  // ctx offsets
+  std::vector<uint64_t> ctx_off;
 
+  void setCtxOffsets();
+  void updateCtxOffsets();
+
+  // hdr
+  void writeCMSHdr();
+
+  // ctx info
+  std::vector<char> ctxInfoBytes(const cms_ctx_info_t& ctx_info);
+  void writeCtxInfoSec();
+
+  // helper - gather prof infos
+  pms_profile_info_t profInfo(const char *input);
+  std::vector<pms_profile_info_t> profInfoList();
+
+  // helper - gather ctx id idx pairs
   struct PMS_CtxIdIdxPair{
     uint32_t ctx_id;  // = cct node id
     uint64_t ctx_idx; //starting location of the context's values in value array
   };
+  struct profCtxIdIdxPairs{
+    std::vector<PMS_CtxIdIdxPair> * prof_ctx_pairs;
+    pms_profile_info_t * pi;
+  };
+  hpctoolkit::util::ParallelForEach<profCtxIdIdxPairs> parForCiip;
 
+  PMS_CtxIdIdxPair ctxIdIdxPair(const char *input);
+  void handleItemCiip(profCtxIdIdxPairs& ciip);  
+  std::vector<std::vector<SparseDB::PMS_CtxIdIdxPair>> 
+  allProfileCtxIdIdxPairs(std::vector<pms_profile_info_t>& prof_info);
+
+
+  // helper - extract one profile data
+  struct profData{
+    std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>> * profiles_data; //ptr to the destination
+    std::vector<pms_profile_info_t> * pi_list;
+    std::vector<std::vector<PMS_CtxIdIdxPair>> * all_prof_ctx_pairs;
+    std::vector<uint32_t> * ctx_ids;
+    uint i;
+  };
+  hpctoolkit::util::ResettableParallelForEach<profData> parForPd;
+
+  int findOneCtxIdIdxPair(const uint32_t target_ctx_id,
+                          const std::vector<PMS_CtxIdIdxPair>& profile_ctx_pairs,
+                          const uint length, const int round, const int found_ctx_idx,
+                          std::vector<std::pair<uint32_t, uint64_t>>& my_ctx_pairs);
+
+  std::vector<std::pair<uint32_t, uint64_t>> myCtxPairs(const std::vector<uint32_t>& ctx_ids, 
+                                                        const std::vector<PMS_CtxIdIdxPair>& profile_ctx_pairs);
+
+  std::vector<char> valMidsBytes(std::vector<std::pair<uint32_t, uint64_t>>& my_ctx_pairs,
+                                 const uint64_t& off);
+                        
+  void handleItemPd(profData& pd);
+
+  std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>>
+  profilesData(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_info_t>& prof_info_list,
+               std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
+
+
+  // helper - convert one profile data to a CtxMetricBlock
   struct MetricValBlock{
     uint16_t mid;
     uint32_t num_values; // can be set at the end, used as idx for mid
     std::vector<std::pair<hpcrun_metricVal_t,uint32_t>> values_prof_idxs;
   };
-
   struct CtxMetricBlock{
     uint32_t ctx_id;
     std::map<uint16_t, MetricValBlock> metrics;
   };
+  
+  MetricValBlock metValBloc(const hpcrun_metricVal_t val,const uint16_t mid, const uint32_t prof_idx);
+  void updateCtxMetBloc(const hpcrun_metricVal_t val, const uint16_t mid,
+                        const uint32_t prof_idx, CtxMetricBlock& cmb);
+  void interpretValMidsBytes(char *vminput,const uint32_t prof_idx,
+                             const std::pair<uint32_t,uint64_t>& ctx_pair,
+                             const uint64_t next_ctx_idx,const uint64_t first_ctx_idx,
+                             CtxMetricBlock& cmb); 
 
-  struct ctxRange{
-    uint64_t start;
-    uint64_t end;
 
-    std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>> * pd;
-    std::vector<uint32_t>* ctx_ids;
-    std::vector<pms_profile_info_t>* pis;
-  };
+  // helper - convert CtxMetricBlocks to correct bytes for writing
+  std::vector<char> mvbBytes(const MetricValBlock& mvb);                      
+  std::vector<char> mvbsBytes(std::map<uint16_t, MetricValBlock>& metrics);
+  std::vector<char> metIdIdxPairsBytes(const std::map<uint16_t, MetricValBlock>& metrics);
+  std::vector<char> cmbBytes(const CtxMetricBlock& cmb, const uint32_t& ctx_id);
 
+  // write contexts
   struct nextCtx{
     uint32_t ctx_id;
     uint32_t prof_idx; 
@@ -266,150 +315,27 @@ private:
     }
   };
 
-  struct profData{
-    std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>> * profiles_data; //ptr to the destination
-    std::vector<pms_profile_info_t> * pi_list;
-    std::vector<std::vector<PMS_CtxIdIdxPair>> * all_prof_ctx_pairs;
-    std::vector<uint32_t> * ctx_ids;
-    uint i;
+  struct ctxRange{
+    uint64_t start;
+    uint64_t end;
+
+    std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>> * pd;
+    std::vector<uint32_t>* ctx_ids;
+    std::vector<pms_profile_info_t>* pis;
   };
-
-  struct profCtxIdIdxPairs{
-    std::vector<PMS_CtxIdIdxPair> * prof_ctx_pairs;
-    pms_profile_info_t * pi;
-  };
-
-  //---------------------------------------------------------------------------
-  // header
-  //---------------------------------------------------------------------------
-  void writeCMSHdr(hpctoolkit::util::File::Instance& cct_major_f);
-
-  //---------------------------------------------------------------------------
-  //  ctx info
-  //---------------------------------------------------------------------------
-  std::vector<char> ctxInfoBytes(const cms_ctx_info_t& ctx_info);
-
-  void writeCtxInfoSec1(hpctoolkit::util::File::Instance& ofh);
-
-
-  //---------------------------------------------------------------------------
-  // ctx offsets
-  //---------------------------------------------------------------------------
-
-
-  std::vector<uint64_t> ctxOffsets1();
-                    
-
-                 
-  void updateCtxOffsets(const int threads,std::vector<uint64_t>& ctx_off);
-
-  //---------------------------------------------------------------------------
-  // get a list of profile info
-  //---------------------------------------------------------------------------
-  pms_profile_info_t profInfo(const char *input);
-
-  std::vector<pms_profile_info_t> profInfoList(const int threads,const hpctoolkit::util::File& fh);
-
-
-  //---------------------------------------------------------------------------
-  // get all profiles' CtxIdIdxPairs
-  //---------------------------------------------------------------------------
-  //get one ctx_id & ctx_idx pair based on input
-  PMS_CtxIdIdxPair ctxIdIdxPair(const char *input);
-
-  //get thd ctx_id & ctx_idx pairs for a profile represented by pi                      
-  std::vector<PMS_CtxIdIdxPair> ctxIdIdxPairs(hpctoolkit::util::File::Instance& fh, 
-                                              const pms_profile_info_t pi);
-
-
-
-
-  void handleItemCiip(profCtxIdIdxPairs& ciip);  
-
-  std::vector<std::vector<SparseDB::PMS_CtxIdIdxPair>> 
-  allProfileCtxIdIdxPairs1( std::vector<pms_profile_info_t>& prof_info);
-
-
-  //---------------------------------------------------------------------------
-  // read/extract profiles data - my_ctx_id_idx_pairs and my val&mid bytes
-  //---------------------------------------------------------------------------
-  //in a vector of PMS_CtxIdIdxPair, find one with target context id
-  //output: found idx / SPARSE_END(already end of the vector, not found) / SPARSE_NOT_FOUND
-  int findOneCtxIdIdxPair(const uint32_t target_ctx_id,
-                          const std::vector<PMS_CtxIdIdxPair>& profile_ctx_pairs,
-                          const uint length, const int round, const int found_ctx_idx,
-                          std::vector<std::pair<uint32_t, uint64_t>>& my_ctx_pairs);
-
-  std::vector<std::pair<uint32_t, uint64_t>> 
-  myCtxPairs(const std::vector<uint32_t>& ctx_ids, const std::vector<PMS_CtxIdIdxPair>& profile_ctx_pairs);
-
-  std::vector<char> valMidsBytes(std::vector<std::pair<uint32_t, uint64_t>>& my_ctx_pairs,
-                                 const uint64_t& off, hpctoolkit::util::File::Instance& fh);
-                        
-
-  void handleItemPd(profData& pd);
-  std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>>
-  profilesData1(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_info_t>& prof_info_list,
-                std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
-
-  //---------------------------------------------------------------------------
-  // interpret the data bytes and convert to CtxMetricBlock
-  //---------------------------------------------------------------------------
-  //create and return a new MetricValBlock
-  MetricValBlock metValBloc(const hpcrun_metricVal_t val,const uint16_t mid, const uint32_t prof_idx);
-
-
-  void updateCtxMetBloc(const hpcrun_metricVal_t val, const uint16_t mid,
-                        const uint32_t prof_idx, CtxMetricBlock& cmb);
-
-
-  //interpret val_mids bytes for one ctx
-  void interpretValMidsBytes(char *vminput,const uint32_t prof_idx,
-                             const std::pair<uint32_t,uint64_t>& ctx_pair,
-                             const uint64_t next_ctx_idx,const uint64_t first_ctx_idx,
-                             CtxMetricBlock& cmb);                  
-
-
-  //---------------------------------------------------------------------------
-  // convert ctx_met_blocks to correct bytes for writing
-  //---------------------------------------------------------------------------
-  //return bytes of one MetricValBlock converted
-  std::vector<char> mvbBytes(const MetricValBlock& mvb);
-
-  //return bytes of ALL MetricValBlock of one CtxMetricBlock converted                              
-  std::vector<char> mvbsBytes(std::map<uint16_t, MetricValBlock>& metrics);
-
-  //build metric id and idx pairs for one context as bytes 
-  std::vector<char> metIdIdxPairsBytes(const std::map<uint16_t, MetricValBlock>& metrics);
-
-  //return bytes of one CtxMetricBlock
-  std::vector<char> cmbBytes(const CtxMetricBlock& cmb, const std::vector<uint64_t>& ctx_off, 
-                             const uint32_t& ctx_id);
-
-  //---------------------------------------------------------------------------
-  // read and write for all contexts in this rank's list
-  //---------------------------------------------------------------------------
-  void buildCtxGroupList();
-
-  uint32_t ctxGrpIdFetch();
-
+  
+  std::vector<uint32_t> ctx_group_list; //each number represents the starting ctx id for this group
+  uint32_t ctxGrpId;
+  hpctoolkit::mpi::SharedAccumulator accCtxGrp;
+  hpctoolkit::util::ResettableParallelForEach<ctxRange> parForCtxs;
 
   void handleItemCtxs(ctxRange& cr);
-  //read a context group's data and write them out
-  void rwOneCtxGroup1(std::vector<uint32_t>& ctx_ids, 
-                      std::vector<pms_profile_info_t>& prof_info, 
-                     const std::vector<uint64_t>& ctx_off, 
-                     const int threads, 
-                      std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
-
-
-  //read ALL context groups' data and write them out
-  void rwAllCtxGroup1(std::vector<pms_profile_info_t>& prof_info, 
-                     const std::vector<uint64_t>& ctx_off, 
-                     const int threads,
-                      std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
-
-
+  void rwOneCtxGroup(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_info_t>& prof_info_list, 
+                     std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
+  void buildCtxGroupList();                   
+  uint32_t ctxGrpIdFetch();                   
+  void rwAllCtxGroup(std::vector<pms_profile_info_t>& prof_info, 
+                     std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs);
 
 };
 
