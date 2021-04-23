@@ -53,6 +53,7 @@
 #include <algorithm>
 #include <sstream>
 #include <limits>
+#include <iostream>
 
 using namespace hpctoolkit;
 using namespace sinks;
@@ -437,6 +438,9 @@ ExperimentXML4::udContext::udContext(const Context& c, ExperimentXML4& exml)
     ss << " i=\"" << c.userdata[exml.src.identifier()] << "\""
           " s=\"" << proc.id << "\""
           " l=\"" << fl.second << "\"";
+    if(mo.first != nullptr)
+      ss << " v=\"0x" << std::hex << mo.second << "\""
+        " m=\"" << mo.first->path().string() << "\"";
     attr = ss.str();
     if(mo.first) mo.first->userdata[exml.ud].incr(*mo.first, exml);
     break;
@@ -634,6 +638,27 @@ void ExperimentXML4::write() {
     if(c.scope().type() != Scope::Type::global)
       of << " it=\"" << c.userdata[src.identifier()] << "\"";
 
+    if ((c.scope().type() == hpctoolkit::Scope::Type::point) || (c.scope().type() == hpctoolkit::Scope::Type::call) ||
+        (c.scope().type() == hpctoolkit::Scope::Type::classified_point) || (c.scope().type() == hpctoolkit::Scope::Type::classified_call) ||
+        (c.scope().type() == hpctoolkit::Scope::Type::concrete_line)) {
+      uint64_t offset = c.scope().point_data().second;
+      const std::string latency_metric_name = "GINS: LAT(cycles)";
+      const auto& stats = c.statistics();
+
+      for(const auto& mx: stats.citerate()) {
+        const auto& m = mx.first;
+        if(!m->scopes().has(MetricScope::function) || !m->scopes().has(MetricScope::execution))
+          util::log::fatal{} << "Metric isn't function/execution!";
+        const auto& ids = m->userdata[src.mscopeIdentifiers()];
+        const auto& vv = mx.second;
+        size_t idx = 0;
+
+        if (m->name().find(latency_metric_name) != std::string::npos) {
+          int latency = *(vv.get(m->partials()[0]).get(MetricScope::point));
+          std::cout << "LATENCY_BLAME:: module: " << c.scope() << ", parent module: " << c.direct_parent()->scope() << ", offset: " << offset << ", val: " << latency << std::endl;
+        }
+      }
+    }
     // If this is an empty tag, use the shorter form, otherwise close the tag.
     if(c.children().empty()) {
       of << "/>\n" << udc.post;
