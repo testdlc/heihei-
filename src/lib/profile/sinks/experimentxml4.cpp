@@ -649,9 +649,7 @@ void ExperimentXML4::write() {
         const auto& m = mx.first;
         if(!m->scopes().has(MetricScope::function) || !m->scopes().has(MetricScope::execution))
           util::log::fatal{} << "Metric isn't function/execution!";
-        const auto& ids = m->userdata[src.mscopeIdentifiers()];
         const auto& vv = mx.second;
-        size_t idx = 0;
 
         if (m->name().find(latency_metric_name) != std::string::npos) {
           int latency = *(vv.get(m->partials()[0]).get(MetricScope::point));
