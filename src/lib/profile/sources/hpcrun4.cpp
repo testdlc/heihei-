@@ -87,9 +87,9 @@ Hpcrun4::Hpcrun4(const stdshim::filesystem::path& fn)
     fileValid = false;
     return;
   }
-  stdshim::optional<unsigned long> mpirank;
-  stdshim::optional<unsigned long> threadid;
-  stdshim::optional<unsigned long> hostid;
+  std::optional<unsigned long> mpirank;
+  std::optional<unsigned long> threadid;
+  std::optional<unsigned long> hostid;
   for(uint32_t i = 0; i < hdr.nvps.len; i++) {
     const std::string k(hdr.nvps.lst[i].name);
     const auto v = hdr.nvps.lst[i].val;

@@ -567,7 +567,7 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
             next++;
           }
           if(next < avails->size()) break;
-          if(nearfull) util::log::fatal{} << "No more slots to fill, still bugged?";
+          assert(!nearfull && "Ran out of slots trying to allocate inputs to ranks!");
           // Try again, but allocate more aggressively
           nearfull = true;
           next = 0;
@@ -583,7 +583,7 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
   for(auto& p_s: extra) {
     stdshim::filesystem::path p = std::move(p_s);
     auto s = ProfileSource::create_for(p);
-    if(!s) util::log::fatal{} << "Inputs have changed during preparation!";
+    if(!s) util::log::fatal{} << "Input " << p << " has changed on disk, please let it stablize before continuing!";
     sources.emplace_back(std::move(s), std::move(p));
   }
 }
@@ -610,7 +610,7 @@ static std::pair<bool, fs::path> remove_prefix(const fs::path& path, const fs::p
 
 static fs::path search(const std::unordered_map<fs::path, fs::path>& prefixes,
                        const fs::path& p) noexcept {
-  stdshim::filesystemx::error_code ec;
+  std::error_code ec;
   for(const auto& ft: prefixes) {
     auto xp = remove_prefix(p, ft.first);
     if(xp.first) {

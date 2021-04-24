@@ -104,9 +104,8 @@ void SparseDB::notifyWavefront(DataClass d) noexcept {
   src.contexts().citerate([&](const Context& c){
     auto id = c.userdata[src.identifier()];
     ctxMaxId = std::max(ctxMaxId, id);
-    if(!cs.emplace(id, c).second)
-      util::log::fatal() << "Duplicate Context identifier "
-                         << c.userdata[src.identifier()] << "!";
+    auto x = cs.emplace(id, c);
+    assert(x.second && "Context identifiers not unique!");
   }, nullptr);
 
   contexts.reserve(cs.size());

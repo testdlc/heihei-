@@ -76,7 +76,7 @@ DirectClassification::DirectClassification(uintmax_t dt)
 // Search for an alternative debug file to load. Roughly copied from
 // dwarf_getalt, which is a rough copy of GDB's handling.
 static stdshim::filesystem::path altfile(const stdshim::filesystem::path& path, Elf* elf) {
-  stdshim::filesystemx::error_code ec;
+  std::error_code ec;
   path.lexically_normal();
 
   // Attempt 1: build-id

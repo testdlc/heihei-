@@ -116,11 +116,11 @@ StructFile::StructFile(const stdshim::filesystem::path& p) : path(p) {
 
   XMLPScanToken token;
   if(!parser->parseFirst(XMLStr(p.string()), token))
-    util::log::fatal() << "Unable to parse prologue!";
+    util::log::fatal() << "Unable to parse Structfile XML prologue!";
 
   while(lm.empty())
     if(!parser->parseNext(token))
-      util::log::fatal() << "Unable to parse something!";
+      util::log::fatal() << "Unable to parse Structfile XML element!";
 
   modpath = std::move(lm);
   xmlusers.fetch_add(1, std::memory_order_relaxed);

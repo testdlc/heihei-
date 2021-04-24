@@ -58,7 +58,7 @@
 #include <atomic>
 #include <bitset>
 #include <functional>
-#include "stdshim/optional.hpp"
+#include <optional>
 #include <variant>
 #include <vector>
 

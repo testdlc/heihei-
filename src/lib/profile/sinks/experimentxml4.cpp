@@ -152,7 +152,6 @@ ExperimentXML4::udFile::udFile(ExperimentXML4& exml)
 
 void ExperimentXML4::udFile::incr(ExperimentXML4& exml) {
   namespace fs = stdshim::filesystem;
-  namespace fsx = stdshim::filesystemx;
   if(!used.exchange(true, std::memory_order_relaxed)) {
     std::ostringstream ss;
     if(fl == nullptr) {
@@ -168,7 +167,7 @@ void ExperimentXML4::udFile::incr(ExperimentXML4& exml) {
         p = exml.dir / p;
         if(!exml.dir.empty()) {
           fs::create_directories(p.parent_path());
-          fs::copy_file(rp, p, fsx::copy_options::overwrite_existing);
+          fs::copy_file(rp, p, fs::copy_options::overwrite_existing);
         }
       } else ss << util::xmlquoted(fl->path().string());
       ss << "/>\n";
@@ -604,10 +603,7 @@ void ExperimentXML4::write() {
         "</SecHeader>\n";
 
   // Early check: the global Context must have id 0
-  if(src.contexts().userdata[src.identifier()] != 0)
-    util::log::fatal{} << "Global Context id "
-                       << src.contexts().userdata[src.identifier()]
-                       << " != 0!";
+  assert(src.contexts().userdata[src.identifier()] == 0 && "Global Context must have id 0!");
 
   // Spit out the CCT
   src.contexts().citerate([&](const Context& c){
