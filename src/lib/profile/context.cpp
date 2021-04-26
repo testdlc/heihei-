@@ -142,7 +142,7 @@ SuperpositionedContext& Context::superposition(std::vector<SuperpositionedContex
     for(ContextRef t: targ.route) {
       if(auto tc = std::get_if<Context>(t)) {
         util::optional_ref<Context> c = *tc;
-        for(; c && c != *this; c = c->direct_parent());
+        for(; c && c != this; c = c->direct_parent());
         assert(c && "Attempt to route via a non-decendant Context!");
       } else if(auto tc = std::get_if<SuperpositionedContext>(t)) {
         assert(&tc->m_root == this && "Attempt to route via an incorrectly rooted Superposition!");

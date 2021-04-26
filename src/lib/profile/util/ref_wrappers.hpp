@@ -86,11 +86,35 @@ public:
   T* operator->() const noexcept { return &d.get(); }
 
   friend constexpr bool operator==(const reference_index& a, const reference_index& b) noexcept { return &a.get() == &b.get(); }
+  friend constexpr bool operator==(const reference_index&, T&) = delete;
+  friend constexpr bool operator==(T&, const reference_index&) = delete;
+  friend constexpr bool operator==(const reference_index& a, T* b) noexcept { return &a.get() == b; }
+  friend constexpr bool operator==(T* a, const reference_index& b) noexcept { return a == &b.get(); }
   friend constexpr bool operator!=(const reference_index& a, const reference_index& b) noexcept { return &a.get() != &b.get(); }
+  friend constexpr bool operator!=(const reference_index&, T&) = delete;
+  friend constexpr bool operator!=(T&, const reference_index&) = delete;
+  friend constexpr bool operator!=(const reference_index& a, T* b) noexcept { return &a.get() == b; }
+  friend constexpr bool operator!=(T* a, const reference_index& b) noexcept { return a == &b.get(); }
   friend constexpr bool operator<(const reference_index& a, const reference_index& b) noexcept { return &a.get() < &b.get(); }
+  friend constexpr bool operator<(const reference_index&, T&) = delete;
+  friend constexpr bool operator<(T&, const reference_index&) = delete;
+  friend constexpr bool operator<(const reference_index& a, T* b) noexcept { return &a.get() == b; }
+  friend constexpr bool operator<(T* a, const reference_index& b) noexcept { return a == &b.get(); }
   friend constexpr bool operator<=(const reference_index& a, const reference_index& b) noexcept { return &a.get() <= &b.get(); }
+  friend constexpr bool operator<=(const reference_index&, T&) = delete;
+  friend constexpr bool operator<=(T&, const reference_index&) = delete;
+  friend constexpr bool operator<=(const reference_index& a, T* b) noexcept { return &a.get() == b; }
+  friend constexpr bool operator<=(T* a, const reference_index& b) noexcept { return a == &b.get(); }
   friend constexpr bool operator>(const reference_index& a, const reference_index& b) noexcept { return &a.get() > &b.get(); }
+  friend constexpr bool operator>(const reference_index&, T&) = delete;
+  friend constexpr bool operator>(T&, const reference_index&) = delete;
+  friend constexpr bool operator>(const reference_index& a, T* b) noexcept { return &a.get() == b; }
+  friend constexpr bool operator>(T* a, const reference_index& b) noexcept { return a == &b.get(); }
   friend constexpr bool operator>=(const reference_index& a, const reference_index& b) noexcept { return &a.get() >= &b.get(); }
+  friend constexpr bool operator>=(const reference_index&, T&) = delete;
+  friend constexpr bool operator>=(T&, const reference_index&) = delete;
+  friend constexpr bool operator>=(const reference_index& a, T* b) noexcept { return &a.get() == b; }
+  friend constexpr bool operator>=(T* a, const reference_index& b) noexcept { return a == &b.get(); }
 };
 
 /// Semi-equivalent to std::optional<T&>, without the errors.
@@ -125,11 +149,35 @@ public:
   }
 
   friend constexpr bool operator==(const optional_ref& a, const optional_ref& b) noexcept { return a.d == b.d; }
+  friend constexpr bool operator==(const optional_ref&, T&) = delete;
+  friend constexpr bool operator==(T&, const optional_ref&) = delete;
+  friend constexpr bool operator==(const optional_ref& a, T* b) noexcept { return a == optional_ref(*b); }
+  friend constexpr bool operator==(T* a, const optional_ref& b) noexcept { return optional_ref(*a) == b; }
   friend constexpr bool operator!=(const optional_ref& a, const optional_ref& b) noexcept { return a.d != b.d; }
+  friend constexpr bool operator!=(const optional_ref&, T&) = delete;
+  friend constexpr bool operator!=(T&, const optional_ref&) = delete;
+  friend constexpr bool operator!=(const optional_ref& a, T* b) noexcept { return a != optional_ref(*b); }
+  friend constexpr bool operator!=(T* a, const optional_ref& b) noexcept { return optional_ref(*a) != b; }
   friend constexpr bool operator<(const optional_ref& a, const optional_ref& b) noexcept { return a.d < b.d; }
+  friend constexpr bool operator<(const optional_ref&, T&) = delete;
+  friend constexpr bool operator<(T&, const optional_ref&) = delete;
+  friend constexpr bool operator<(const optional_ref& a, T* b) noexcept { return a < optional_ref(*b); }
+  friend constexpr bool operator<(T* a, const optional_ref& b) noexcept { return optional_ref(*a) < b; }
   friend constexpr bool operator<=(const optional_ref& a, const optional_ref& b) noexcept { return a.d <= b.d; }
+  friend constexpr bool operator<=(const optional_ref&, T&) = delete;
+  friend constexpr bool operator<=(T&, const optional_ref&) = delete;
+  friend constexpr bool operator<=(const optional_ref& a, T* b) noexcept { return a <= optional_ref(*b); }
+  friend constexpr bool operator<=(T* a, const optional_ref& b) noexcept { return optional_ref(*a) <= b; }
   friend constexpr bool operator>(const optional_ref& a, const optional_ref& b) noexcept { return a.d > b.d; }
+  friend constexpr bool operator>(const optional_ref&, T&) = delete;
+  friend constexpr bool operator>(T&, const optional_ref&) = delete;
+  friend constexpr bool operator>(const optional_ref& a, T* b) noexcept { return a > optional_ref(*b); }
+  friend constexpr bool operator>(T* a, const optional_ref& b) noexcept { return optional_ref(*a) > b; }
   friend constexpr bool operator>=(const optional_ref& a, const optional_ref& b) noexcept { return a.d >= b.d; }
+  friend constexpr bool operator>=(const optional_ref&, T&) = delete;
+  friend constexpr bool operator>=(T&, const optional_ref&) = delete;
+  friend constexpr bool operator>=(const optional_ref& a, T* b) noexcept { return a >= optional_ref(*b); }
+  friend constexpr bool operator>=(T* a, const optional_ref& b) noexcept { return optional_ref(*a) >= b; }
 
   constexpr T& value() const { return d.value().get(); }
 
