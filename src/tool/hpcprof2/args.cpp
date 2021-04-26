@@ -489,6 +489,8 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
     char end_arc;
   #endif
 
+    const fs::path profileext = std::string(".")+HPCRUN_ProfileFnmSfx;
+
     ANNOTATE_HAPPENS_BEFORE(&start_arc);
     #pragma omp parallel num_threads(threads)
     {
@@ -501,6 +503,9 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
         if(s) {
           my_sources.emplace_back(std::move(s), std::move(pg.first));
           cnts_a[pg.second].fetch_add(1, std::memory_order_relaxed);
+        } else if(pg.first.extension() == profileext) {
+          util::log::warning{} << pg.first.filename().string() << " is named as "
+              " a measurement profile but does not appear to be one, it will be skipped.";
         }
       }
       #pragma omp critical

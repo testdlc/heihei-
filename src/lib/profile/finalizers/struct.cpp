@@ -104,6 +104,7 @@ static std::atomic<unsigned int> xmlusers;
 
 StructFile::StructFile(const stdshim::filesystem::path& p) : path(p) {
   util::call_once(xmlinit, [](){ XMLPlatformUtils::Initialize(); });
+  xmlusers.fetch_add(1, std::memory_order_relaxed);
 
   std::string lm;
   LHandler handler([&](const std::string& ename, const Attributes& attr){
@@ -115,15 +116,21 @@ StructFile::StructFile(const stdshim::filesystem::path& p) : path(p) {
   parser->setErrorHandler(&handler);
 
   XMLPScanToken token;
-  if(!parser->parseFirst(XMLStr(p.string()), token))
-    util::log::fatal() << "Unable to parse Structfile XML prologue!";
+  if(!parser->parseFirst(XMLStr(p.string()), token)) {
+    util::log::info{} << "Error while parsing Structfile XML prologue";
+    util::log::error{} << "Error while parsing Structfile " << p.filename().string();
+    return;
+  }
 
-  while(lm.empty())
-    if(!parser->parseNext(token))
-      util::log::fatal() << "Unable to parse Structfile XML element!";
+  while(lm.empty()) {
+    if(!parser->parseNext(token)) {
+      util::log::info{} << "Error while parsing Structfile XML prologue element";
+      util::log::error{} << "Error while parsing Structfile " << p.filename().string();
+      return;
+    }
+  }
 
   modpath = std::move(lm);
-  xmlusers.fetch_add(1, std::memory_order_relaxed);
 }
 
 StructFile::~StructFile() {
@@ -157,18 +164,24 @@ static std::vector<Classification::Interval> parseVs(const std::string& vs) {
 }
 
 void StructFile::module(const Module& m, Classification& c) noexcept {
+  if(modpath.empty()) return;  // This one failed
   bool matches = false;
   if(m.path() == modpath) matches = true;
   if(m.userdata[sink.resolvedPath()] == modpath) matches = true;
   if(!matches) return;
 
   if(!c.empty()) {
-    util::log::warning()
+    util::log::warning{}
     << "Multiple Structure files (may) apply for " << m.path().filename() << "!\n"
        " Original path: " << m.path() << "\n"
        "Alternate path: " << m.userdata[sink.resolvedPath()];
   }
 
+  if(!parse(m, c))
+    util::log::error{} << "Error while parsing Structfile " << path.string();
+}
+
+bool StructFile::parse(const Module& m, Classification& c) try {
   struct Ctx {
     char tag;
     const File* file;
@@ -181,7 +194,8 @@ void StructFile::module(const Module& m, Classification& c) noexcept {
     Classification::Block* rootScope() const {
       for(const auto& ctx: c)
         if(ctx.scope != nullptr) return ctx.scope;
-      util::log::fatal{} << "No root Scope!";
+      assert(false && "No root Scope!");
+      std::abort();
     }
   } stack;
   bool seenhts = false;
@@ -308,4 +322,17 @@ void StructFile::module(const Module& m, Classification& c) noexcept {
     };
     dfs(root);
   }
+  return true;
+} catch(std::exception& e) {
+  util::log::info{} << "Exception caught while parsing Structfile "
+    << path.string() << "\n"
+       "  what(): " << e.what() << "\n"
+       "  for binary: " << modpath.string();
+  return false;
+} catch(xercesc::SAXException& e) {
+  util::log::info{} << "Exception caught while parsing Structfile "
+    << path.string() << "\n"
+       "  msg: " << xmlstr(e.getMessage()) << "\n"
+       "  for binary: " << modpath.string();
+  return false;
 }
