@@ -189,7 +189,6 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
   bool seenMetricDB = false;
   bool dryRun = false;
 
-  bool maxVerbosity = false;
   int quiet = 0;
   util::log::Settings logSettings(true, true, false);
 
@@ -203,7 +202,6 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
                 << header << options << footer;
       std::exit(0);
     case 'v':
-      maxVerbosity = true;
       logSettings.info() = true;
       break;
     case 'q':
@@ -394,8 +392,7 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
     logSettings.error() = quiet < 2;
   }
   util::log::Settings::set(std::move(logSettings));
-  if(maxVerbosity)
-    util::log::info{} << "Maximum verbosity enabled";
+  util::log::info{} << "Maximum verbosity enabled";
 
   if(dryRun) {
     output = fs::path();
