@@ -92,10 +92,10 @@ void IdPacker::notifyContextExpansion(ContextRef::const_t from, Scope s, Context
     // Helper function to trace an expansion and record it
     auto trace = [&](const Context& leaf) {
       std::vector<std::reference_wrapper<const Context>> stack;
-      const Context* c;
-      for(c = &leaf; c != &*fc && c != nullptr; c = c->direct_parent())
+      util::optional_ref<const Context> c;
+      for(c = leaf; c && c != *fc; c = c->direct_parent())
         stack.emplace_back(*c);
-      assert(c != nullptr && "Found nullptr while mappint expansion, is someone trying to be clever?");
+      assert(c && "Found NULL while mapping expansion, is someone trying to be clever?");
 
       pack(buffer, (std::uint64_t)stack.size());
       for(auto it = stack.crbegin(), ite = stack.crend(); it != ite; ++it) {

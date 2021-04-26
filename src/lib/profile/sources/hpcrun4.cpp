@@ -399,7 +399,7 @@ void Hpcrun4::read(const DataClass& needed) {
         if(!grandpar || !par)
           util::log::fatal{} << "Inline context node without grandparent?";
         std::reference_wrapper<Context> c = std::get<Context>(*par);
-        while(c.get().direct_parent() != &std::get<Context>(*grandpar))
+        while(c.get().direct_parent() != std::get<Context>(*grandpar))
           c = *c.get().direct_parent();
         contextparents.insert({id, {*grandpar, c.get().scope()}});
         continue;

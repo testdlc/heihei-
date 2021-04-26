@@ -56,13 +56,13 @@
 
 using namespace hpctoolkit;
 
-Context::Context(ud_t::struct_t& rs, Context* p, Scope s)
+Context::Context(ud_t::struct_t& rs, util::optional_ref<Context> p, Scope s)
   : userdata(rs, std::ref(*this)), children_p(new children_t()),
-    u_parent(p), u_scope(s) {};
+    m_parent(p), u_scope(s) {};
 Context::Context(Context&& c)
   : userdata(std::move(c.userdata), std::ref(*this)),
     children_p(new children_t()),
-    u_parent(c.direct_parent()), u_scope(c.scope()) {};
+    m_parent(c.direct_parent()), u_scope(c.scope()) {};
 
 Context::~Context() noexcept {
   // C++ generates a recursive algorithm for this by default
@@ -133,7 +133,7 @@ void Context::citerate(const std::function<void(const Context&)>& pre,
 }
 
 std::pair<Context&,bool> Context::ensure(Scope s) {
-  auto x = children_p->emplace(userdata.base(), this, std::move(s));
+  auto x = children_p->emplace(userdata.base(), *this, std::move(s));
   return {x.first(), x.second};
 }
 
@@ -141,9 +141,9 @@ SuperpositionedContext& Context::superposition(std::vector<SuperpositionedContex
   for(const auto& targ: targets) {
     for(ContextRef t: targ.route) {
       if(auto tc = std::get_if<Context>(t)) {
-        Context* c = &*tc;
-        for(; c != nullptr && c != this; c = c->direct_parent());
-        assert(c != nullptr && "Attempt to route via a non-decendant Context!");
+        util::optional_ref<Context> c = *tc;
+        for(; c && c != *this; c = c->direct_parent());
+        assert(c && "Attempt to route via a non-decendant Context!");
       } else if(auto tc = std::get_if<SuperpositionedContext>(t)) {
         assert(&tc->m_root == this && "Attempt to route via an incorrectly rooted Superposition!");
       } else {

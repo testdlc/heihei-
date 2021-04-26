@@ -600,11 +600,11 @@ void Metric::finalize(Thread::Temporary& t) noexcept {
     std::unordered_set<util::reference_index<const Context>>> children;
   for(const auto& cx: t.data.citerate()) {
     std::reference_wrapper<const Context> c = cx.first;
-    while(c.get().direct_parent() != nullptr) {
-      auto x = children.insert({*c.get().direct_parent(), {}});
+    while(auto p = c.get().direct_parent()) {
+      auto x = children.insert({*p, {}});
       x.first->second.emplace(c.get());
       if(!x.second) break;
-      c = *c.get().direct_parent();
+      c = *p;
     }
     assert((!global || global == c.get()) && "Multiple root contexts???");
     assert(c.get().scope().type() == Scope::Type::global && "Root context without (global) Scope!");

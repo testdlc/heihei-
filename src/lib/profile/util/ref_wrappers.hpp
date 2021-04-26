@@ -120,6 +120,10 @@ public:
   constexpr explicit operator bool() const noexcept { return d.has_value(); }
   constexpr bool has_value() const noexcept { return d.has_value(); }
 
+  constexpr operator optional_ref<const T>() const noexcept {
+    return d ? optional_ref<const T>(d->get()) : std::nullopt;
+  }
+
   friend constexpr bool operator==(const optional_ref& a, const optional_ref& b) noexcept { return a.d == b.d; }
   friend constexpr bool operator!=(const optional_ref& a, const optional_ref& b) noexcept { return a.d != b.d; }
   friend constexpr bool operator<(const optional_ref& a, const optional_ref& b) noexcept { return a.d < b.d; }
