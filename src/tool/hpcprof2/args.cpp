@@ -80,8 +80,10 @@ static const std::string options = R"EOF(
 General Options:
   -h, --help                  Display this help and exit.
       --version               Print version information and exit.
-  -v, --verbose               Increase the verbosity of messages.
-  -q, --quiet                 Disable all non-error messages.
+  -v, --verbose               Enable additional information output.
+  -q, --quiet
+                              Disable non-error messages. Overrides --verbose.
+                              If repeated will disable all output.
   -o FILE                     Output to the given filename.
       --force                 Overwrite the output if it exists already.
   -O FILE                     Shorthand for `--force -o FILE'.
@@ -187,6 +189,10 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
   bool seenMetricDB = false;
   bool dryRun = false;
 
+  bool maxVerbosity = false;
+  int quiet = 0;
+  util::log::Settings logSettings(true, true, false);
+
   int opt;
   int longopt;
   while((opt = getopt_long(argc, argv, "hvqQO:o:j:S:R:n:f:M:", longopts, &longopt)) >= 0) {
@@ -197,10 +203,11 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
                 << header << options << footer;
       std::exit(0);
     case 'v':
-      // Eventually, verbosity++;
+      maxVerbosity = true;
+      logSettings.info() = true;
       break;
     case 'q':
-      // Eventually, assert(verbosity == 1); verbosity = 0;
+      quiet++;
       break;
     case 'O':
       arg_overwriteOutput = 1;
@@ -382,6 +389,14 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
   include_traces = arg_includeTraces;
   valgrindUnclean = arg_valgrindUnclean;
 
+  if(quiet > 0) {
+    logSettings = util::log::Settings::none;
+    logSettings.error() = quiet < 2;
+  }
+  util::log::Settings::set(std::move(logSettings));
+  if(maxVerbosity)
+    util::log::info{} << "Maximum verbosity enabled";
+
   if(dryRun) {
     output = fs::path();
     util::log::info{} << "Dry run enabled, final output will be skipped.";
@@ -504,8 +519,8 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
           my_sources.emplace_back(std::move(s), std::move(pg.first));
           cnts_a[pg.second].fetch_add(1, std::memory_order_relaxed);
         } else if(pg.first.extension() == profileext) {
-          util::log::warning{} << pg.first.filename().string() << " is named as "
-              " a measurement profile but does not appear to be one, it will be skipped.";
+          util::log::warning{} << pg.first.filename().string() << " is named "
+              "as a measurement profile but does not appear to be one";
         }
       }
       #pragma omp critical
