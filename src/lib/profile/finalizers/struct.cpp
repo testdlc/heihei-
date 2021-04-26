@@ -141,21 +141,21 @@ StructFile::~StructFile() {
 static std::vector<Classification::Interval> parseVs(const std::string& vs) {
   // General format: {[0xstart-0xend) ...}
   if(vs.at(0) != '{' || vs.size() < 2)
-    util::log::fatal() << "Bad VMA description in struct file: bad start!";
+    throw std::invalid_argument("Bad VMA description: bad start");
   std::vector<Classification::Interval> vals;
   const char* c = vs.data() + 1;
   while(*c != '}') {
     char* cx;
     if(std::isspace(*c)) { c++; continue; }
-    if(*c != '[') util::log::fatal() << "Bad VMA description in struct file: bad segment opening!";
+    if(*c != '[') throw std::invalid_argument("Bad VMA description: bad segment opening");
     c++;
     auto lo = std::strtoll(c, &cx, 16);
     c = cx;
-    if(*c != '-') util::log::fatal() << "Bad VMA description in struct file: bad segment middle!";
+    if(*c != '-') throw std::invalid_argument("Bad VMA description: bad segment middle");
     c++;
     auto hi = std::strtoll(c, &cx, 16);
     c = cx;
-    if(*c != ')') util::log::fatal() << "Bad VMA description in struct file: bad segment closing!";
+    if(*c != ')') throw std::invalid_argument("Bad VMA description: bad segment closing");
     c++;
 
     vals.emplace_back(lo, hi-1);  // Because its a half-open interval
@@ -203,13 +203,13 @@ bool StructFile::parse(const Module& m, Classification& c) try {
   std::vector<Classification::LineScope> lscopes;
   std::unordered_map<uint64_t, Classification::Block*> funcs;
   std::forward_list<std::tuple<Classification::Block*, uint64_t, uint64_t>> cfg;
-  LHandler handler([&](const std::string& ename, const Attributes& attr) noexcept {
+  LHandler handler([&](const std::string& ename, const Attributes& attr) {
     if(ename == "HPCToolkitStructure") {
       stack.emplace();
-      if(seenhts) util::log::fatal() << "Only one HPCToolkitStructure tag is allowed!";
+      if(seenhts) throw std::logic_error("More than one HPCToolkitStructure tag seen");
       seenhts = true;
     } else if(ename == "LM") {
-      if(seenlm) util::log::fatal() << "Only one LM tag is allowed!";
+      if(seenlm) throw std::logic_error("More than one LM tag seen");
       seenlm = true;
     } else if(ename == "F") {
       stack.emplace(stack.top(), 'F');
@@ -252,7 +252,7 @@ bool StructFile::parse(const Module& m, Classification& c) try {
     } else if(ename == "C") {
       auto l = std::stoll(xmlstr(attr.getValue(XMLStr("l"))));
       auto is = parseVs(xmlstr(attr.getValue(XMLStr("v"))));
-      if(is.size() != 1) util::log::fatal{} << "Structfile contains C tag with multiple v ranges!";
+      if(is.size() != 1) throw std::logic_error("C tags should only have a single v range");
       auto i = is[0];
       lscopes.emplace_back(i.lo, Scope::call, stack.top().file, l);
       c.setScope(i, stack.top().scope);
@@ -262,7 +262,7 @@ bool StructFile::parse(const Module& m, Classification& c) try {
         auto t = std::strtoll(&tstr.c_str()[2], nullptr, 16);
         cfg.emplace_front(stack.rootScope(), i.lo, t);
       }
-    } else util::log::fatal() << "Unknown tag in struct file!";
+    } else throw std::logic_error("Unknown tag " + ename);
   }, [&](const std::string& ename){
     if(ename == "LM") return;
     if(ename == "S") return;
@@ -273,7 +273,7 @@ bool StructFile::parse(const Module& m, Classification& c) try {
   parser->setContentHandler(&handler);
   parser->setErrorHandler(&handler);
   parser->parse(XMLStr(path.string()));
-  if(stack.size() != 0) util::log::fatal() << "Too many pushes!";
+  assert(stack.size() == 0 && "Inconsistent stack handling!");
   c.setLines(std::move(lscopes));
 
   // Build the reverse call graph/CFG from the data we've gathered thus far
