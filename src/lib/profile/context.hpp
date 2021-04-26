@@ -50,7 +50,6 @@
 #include "metric.hpp"
 
 #include "util/locked_unordered.hpp"
-#include "util/atomic_unordered.hpp"
 #include "scope.hpp"
 #include "util/ragged_vector.hpp"
 #include "util/ref_wrappers.hpp"
