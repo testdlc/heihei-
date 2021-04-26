@@ -606,9 +606,11 @@ void Metric::finalize(Thread::Temporary& t) noexcept {
       if(!x.second) break;
       c = *p;
     }
-    assert((!global || global == &c.get()) && "Multiple root contexts???");
-    assert(c.get().scope().type() == Scope::Type::global && "Root context without (global) Scope!");
-    global = c.get();
+    if(!c.get().direct_parent()) {
+      assert((!global || global == &c.get()) && "Multiple root contexts???");
+      assert(c.get().scope().type() == Scope::Type::global && "Root context without (global) Scope!");
+      global = c.get();
+    }
   }
   if(!global) return;  // Apparently there's nothing to propagate
 
