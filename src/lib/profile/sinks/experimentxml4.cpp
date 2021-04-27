@@ -369,11 +369,12 @@ ExperimentXML4::udContext::udContext(const Context& c, ExperimentXML4& exml)
     ss << "<PF i=\"" << c.userdata[exml.src.identifier()] << "\""
              " n=\"" << uproc.id << "\" s=\"" << uproc.id << "\""
              " f=\"" << exml.file_unknown.id << "\""
-             " l=\"0\">"
+             " l=\"0\">\n"
           "<C i=\"" << c.userdata[exml.src.identifier()] << "\""
              " s=\"" << uproc.id << "\" v=\"0\" l=\"0\"";
     open = ss.str();
-    close = "</C></PF>\n";
+    close = "</C>\n";
+    post = "</PF>\n";
     break;
   }
   case Scope::Type::loop: {
