@@ -143,6 +143,7 @@ char	*outfile;
 #include "sample_sources_all.h"
 #include "monitor.h"
 #include "audit/audit-api.h"
+#include "files.h"
 #else
 #include "syserv-mesg.h"
 #include "fnbounds_file_header.h"
@@ -500,8 +501,8 @@ launch_server(void)
   //
   auditor_exports->close(fds.sendfd[0]);
   auditor_exports->close(fds.recvfd[1]);
-  fdout = fds.sendfd[1];
-  fdin = fds.recvfd[0];
+  fdout = hpcrun_hide_fd(fds.sendfd[1]);
+  fdin = hpcrun_hide_fd(fds.recvfd[0]);
   my_pid = getpid();
   server_pid = pid;
   client_status = SYSERV_ACTIVE;

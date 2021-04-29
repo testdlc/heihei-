@@ -113,6 +113,7 @@
 #include <sys/time.h>   // gettimeofday
 #include <sys/types.h>  // struct stat
 #include <sys/stat.h>   // stat 
+#include <sys/resource.h>  // *rlimit
 #include <stdbool.h>
 
 
@@ -210,6 +211,77 @@ hpcrun_files_init(void)
 }
 
 
+// Move a file descriptor to a location that the application (probably) won't be
+// concerned about: above the (hard) rlimit for the file descriptor number.
+// Must hold the files lock.
+//
+// Returns the new fd on success, else the input fd on failure.
+// Also returns the input fd if < 0, so can be used inline in most cases.
+static int
+hpcrun_internal_hide_fd(int fd) {
+  if(fd < 0) return fd;
+
+  // Max out the (soft) rlimit to give ourselves enough room to play
+  struct rlimit oldlimit;
+  if(getrlimit(RLIMIT_NOFILE, &oldlimit) < 0) {
+    char buf[4096];
+    fprintf(stderr, "hpctoolkit warning: failed to get NOFILE rlimit: %s\n", strerror_r(errno, buf, sizeof buf));
+    return fd;
+  }
+  struct rlimit maxlimit = {oldlimit.rlim_max, oldlimit.rlim_max};
+  if(setrlimit(RLIMIT_NOFILE, &maxlimit) < 0) {
+    char buf[4096];
+    fprintf(stderr, "hpctoolkit warning: failed to maximize NOFILE rlimit: %s\n", strerror_r(errno, buf, sizeof buf));
+    return fd;
+  }
+
+  // Choose a suitable fd to shift this to. Be cautious and try not to conflict
+  // with anyone else having the same idea. (Its not perfect in a multithreaded
+  // application, but its better than nothing).
+  int newfd = fd;
+  for(int i = 0; i < 16; i++) {
+    int thisfd = oldlimit.rlim_max-1 - i;
+    struct stat statbuf;
+    if(fstat(thisfd, &statbuf) >= 0 || errno != EBADF) continue;  // Someone else is here, try again
+    newfd = thisfd;
+  }
+  if(newfd == fd) {
+    fprintf(stderr, "hpctoolkit warning: could not find unused fd at the top\n");
+    setrlimit(RLIMIT_NOFILE, &oldlimit);
+    return fd;
+  }
+
+  // Shift this fd to the new location, closing the original one
+  if(dup2(fd, newfd) < 0) {
+    char buf[4096];
+    fprintf(stderr, "hpctoolkit warning: failed to dup2 %d to %d: %s\n", fd, newfd, strerror_r(errno, buf, sizeof buf));
+    setrlimit(RLIMIT_NOFILE, &oldlimit);
+    return fd;
+  }
+  if(close(fd) < 0) {
+    char buf[4096];
+    fprintf(stderr, "hpctoolkit warning: failed to close %d: %s\n", fd, strerror_r(errno, buf, sizeof buf));
+  }
+
+  // Set the (hard) rlimit below the new fd to keep the application from seeing
+  struct rlimit newlimit = {
+    .rlim_cur = oldlimit.rlim_cur == RLIM_INFINITY || oldlimit.rlim_cur > newfd ? newfd : oldlimit.rlim_cur,
+    .rlim_max = newfd,
+  };
+  if(setrlimit(RLIMIT_NOFILE, &newlimit) < 0) {
+    char buf[4096];
+    fprintf(stderr, "hpctoolkit warning: failed to set NOFILE rlimit: %s\n", strerror_r(errno, buf, sizeof buf));
+    setrlimit(RLIMIT_NOFILE, &oldlimit);
+    return fd;
+  }
+  if(newlimit.rlim_cur < oldlimit.rlim_cur) {
+    fprintf(stderr, "hpctoolkit warning: lowering soft NOFILE rlimit to: %ld\n", newlimit.rlim_cur);
+  }
+
+  return newfd;
+}
+
+
 // Replace "id" with the next unique id if possible.  Normally,
 // (hostid, pid, gen) works after one or two iterations.  To be extra
 // robust (eg, hostid is not unique), at some point, give up and pick
@@ -261,7 +333,7 @@ hpcrun_open_file(int rank, int thread, const char *suffix, int flags)
   // If not recording data for this process, then open /dev/null.
   if (! hpcrun_sample_prob_active()) {
     fd = open("/dev/null", O_WRONLY);
-    return fd;
+    return hpcrun_internal_hide_fd(fd);
   }
 
   id = (flags & FILES_EARLY) ? &earlyid : &lateid;
@@ -298,7 +370,7 @@ hpcrun_open_file(int rank, int thread, const char *suffix, int flags)
 		 suffix, name, strerror(errno));
   }
 
-  return fd;
+  return hpcrun_internal_hide_fd(fd);
 }
 
 
@@ -528,6 +600,17 @@ hpcrun_rename_trace_file(int rank, int thread)
   TMSG(TRACE, "(rename) Spin lock released for (R:%d, T:%d)", rank, thread);
 
   return ret;
+}
+
+
+// Hide a file descriptor from the application
+// Returns the original fd on failure
+int hpcrun_hide_fd(int fd) {
+  spinlock_lock(&files_lock);
+  fd = hpcrun_internal_hide_fd(fd);
+  spinlock_unlock(&files_lock);
+
+  return fd;
 }
 
 
