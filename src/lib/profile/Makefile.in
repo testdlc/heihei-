@@ -139,8 +139,7 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
-am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
-libHPCprofile_la_DEPENDENCIES = $(am__DEPENDENCIES_2)
+libHPCprofile_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am__dirstamp = $(am__leading_dot)dirstamp
 am__objects_1 = stdshim/libHPCprofile_la-shared_mutex.lo \
 	stdshim/libHPCprofile_la-atomic.lo \
@@ -174,7 +173,7 @@ libHPCprofile_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CXXLD) \
 	$(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-libHPCprofile_standalone_la_DEPENDENCIES = $(am__DEPENDENCIES_2)
+libHPCprofile_standalone_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am__objects_2 = mpi/libHPCprofile_standalone_la-standalone.lo
 am_libHPCprofile_standalone_la_OBJECTS = $(am__objects_2)
 libHPCprofile_standalone_la_OBJECTS =  \
@@ -568,10 +567,6 @@ HPCLIB_SupportLean = $(top_builddir)/src/lib/support-lean/libHPCsupport-lean.la
 #############################################################################
 # Local settings
 #############################################################################
-@OPT_ENABLE_IGC_TRUE@IGC_IFLAGS = @OPT_IGC_IFLAGS@
-@OPT_ENABLE_IGC_TRUE@IGA_LDFLGS = @OPT_IGC_LDFLAGS@
-@OPT_ENABLE_METRICS_DISCOVERY_TRUE@MD_IFLAGS = @OPT_METRICS_DISCOVERY_IFLAGS@
-@OPT_DYNINST_LIBDWARF_TRUE@DWARF_IFLAGS = -I$(LIBDWARF_INC)
 MYSOURCES = \
 	stdshim/shared_mutex.cpp stdshim/atomic.cpp stdshim/futex-detail.c \
 	\
@@ -595,14 +590,11 @@ MYSTANDALONESOURCES = mpi/standalone.cpp
 MYCFLAGS = @HOST_CFLAGS@ $(HPC_IFLAGS) @VALGRIND_IFLAGS@ \
 	-I@LIBELF_INC@ $(am__append_1)
 MYCXXFLAGS = @HOST_CXXFLAGS@ $(HPC_IFLAGS) @BOOST_IFLAGS@ \
-	@VALGRIND_IFLAGS@ $(IGC_IFLAGS) $(MD_IFLAGS) $(DYNINST_IFLAGS) \
-	@TBB_IFLAGS@ @XERCES_IFLAGS@ -I@LIBELF_INC@ -std=gnu++17 \
+	@VALGRIND_IFLAGS@ @XERCES_IFLAGS@ -I@LIBELF_INC@ -std=gnu++17 \
 	$(am__append_2)
 @IS_HOST_AR_FALSE@MYAR = $(AR) cru
 @IS_HOST_AR_TRUE@MYAR = @HOST_AR@
-MYLIBADD = @HOST_LIBTREPOSITORY@ -L@LIBELF_LIB@ -ldw -lelf	\
-					 $(IGA_LDFLGS)
-
+MYLIBADD = @HOST_LIBTREPOSITORY@ -L@LIBELF_LIB@ -ldw -lelf
 MYCLEAN = @HOST_LIBTREPOSITORY@
 
 #############################################################################

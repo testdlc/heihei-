@@ -48,8 +48,6 @@
 ##
 ## File:
 ##   $HeadURL$
-##
-## Description:
 ##   *Process with automake to produce Makefile.in*
 ##
 ##   Note: All local variables are prefixed with MY to prevent name
@@ -69,20 +67,6 @@ include $(top_srcdir)/src/Makeinclude.config
 #############################################################################
 # Local settings
 #############################################################################
-
-if OPT_ENABLE_IGC
-IGC_IFLAGS = @OPT_IGC_IFLAGS@
-IGA_LDFLGS = @OPT_IGC_LDFLAGS@
-endif
-
-if OPT_ENABLE_METRICS_DISCOVERY
-MD_IFLAGS = @OPT_METRICS_DISCOVERY_IFLAGS@
-endif
-
-DYNINST_IFLAGS = @DYNINST_IFLAGS@
-if OPT_DYNINST_LIBDWARF
-DWARF_IFLAGS = -I$(LIBDWARF_INC)
-endif
 
 MYSOURCES = \
 	stdshim/shared_mutex.cpp stdshim/atomic.cpp stdshim/futex-detail.c \
@@ -106,7 +90,6 @@ MYSTANDALONESOURCES = mpi/standalone.cpp
 # GNU binutils flags are needed for HPCLIB_ISA.
 MYCFLAGS   = @HOST_CFLAGS@   $(HPC_IFLAGS) @VALGRIND_IFLAGS@ -I@LIBELF_INC@
 MYCXXFLAGS = @HOST_CXXFLAGS@ $(HPC_IFLAGS) @BOOST_IFLAGS@ @VALGRIND_IFLAGS@ \
-						 $(IGC_IFLAGS) $(MD_IFLAGS)	$(DYNINST_IFLAGS) @TBB_IFLAGS@ \
 						 @XERCES_IFLAGS@ -I@LIBELF_INC@ -std=gnu++17
 
 if OPT_ENABLE_OPENMP
@@ -120,8 +103,7 @@ else
   MYAR = $(AR) cru
 endif
 
-MYLIBADD = @HOST_LIBTREPOSITORY@ -L@LIBELF_LIB@ -ldw -lelf	\
-					 $(IGA_LDFLGS)
+MYLIBADD = @HOST_LIBTREPOSITORY@ -L@LIBELF_LIB@ -ldw -lelf
 
 MYCLEAN = @HOST_LIBTREPOSITORY@
 
