@@ -80,8 +80,10 @@ static const std::string options = R"EOF(
 General Options:
   -h, --help                  Display this help and exit.
       --version               Print version information and exit.
-  -v, --verbose               Increase the verbosity of messages.
-  -q, --quiet                 Disable all non-error messages.
+  -v, --verbose               Enable additional information output.
+  -q, --quiet
+                              Disable non-error messages. Overrides --verbose.
+                              If repeated will disable all output.
   -o FILE                     Output to the given filename.
       --force                 Overwrite the output if it exists already.
   -O FILE                     Shorthand for `--force -o FILE'.
@@ -154,12 +156,10 @@ const bool string_ends_with(const std::string& a, const std::string& n) {
 ProfArgs::ProfArgs(int argc, char* const argv[])
   : title(), threads(1), instructionGrain(false), output(),
     include_sources(true), include_traces(true), include_thread_local(true),
-    format(Format::sparse), dwarfMaxSize(100*1024*1024), valgrindUnclean(false),
-    sparse_debug(false) {
+    format(Format::sparse), dwarfMaxSize(100*1024*1024), valgrindUnclean(false) {
   int arg_instructionGrain = instructionGrain;
   int arg_includeSources = include_sources;
   int arg_includeTraces = include_traces;
-  int arg_sparseDebug = sparse_debug;
   int arg_overwriteOutput = 0;
   int arg_valgrindUnclean = valgrindUnclean;
   struct option longopts[] = {
@@ -180,7 +180,6 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
     {"no-traces", no_argument, &arg_includeTraces, 0},
     {"no-source", no_argument, &arg_includeSources, 0},
     {"name", required_argument, NULL, 'n'},
-    {"sparse-debug", no_argument, &arg_sparseDebug, 1},
     {"force", no_argument, &arg_overwriteOutput, 1},
     {"valgrind-unclean", no_argument, &arg_valgrindUnclean, 1},
     {0, 0, 0, 0}
@@ -189,6 +188,9 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
   bool seenNoThreadLocal = false;
   bool seenMetricDB = false;
   bool dryRun = false;
+
+  int quiet = 0;
+  util::log::Settings logSettings(true, true, false);
 
   int opt;
   int longopt;
@@ -200,10 +202,10 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
                 << header << options << footer;
       std::exit(0);
     case 'v':
-      // Eventually, verbosity++;
+      logSettings.info() = true;
       break;
     case 'q':
-      // Eventually, assert(verbosity == 1); verbosity = 0;
+      quiet++;
       break;
     case 'O':
       arg_overwriteOutput = 1;
@@ -383,8 +385,14 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
   instructionGrain = arg_instructionGrain;
   include_sources = arg_includeSources;
   include_traces = arg_includeTraces;
-  sparse_debug = arg_sparseDebug;
   valgrindUnclean = arg_valgrindUnclean;
+
+  if(quiet > 0) {
+    logSettings = util::log::Settings::none;
+    logSettings.error() = quiet < 2;
+  }
+  util::log::Settings::set(std::move(logSettings));
+  util::log::info{} << "Maximum verbosity enabled";
 
   if(dryRun) {
     output = fs::path();
@@ -493,6 +501,8 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
     char end_arc;
   #endif
 
+    const fs::path profileext = std::string(".")+HPCRUN_ProfileFnmSfx;
+
     ANNOTATE_HAPPENS_BEFORE(&start_arc);
     #pragma omp parallel num_threads(threads)
     {
@@ -505,6 +515,9 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
         if(s) {
           my_sources.emplace_back(std::move(s), std::move(pg.first));
           cnts_a[pg.second].fetch_add(1, std::memory_order_relaxed);
+        } else if(pg.first.extension() == profileext) {
+          util::log::warning{} << pg.first.filename().string() << " is named "
+              "as a measurement profile but does not appear to be one";
         }
       }
       #pragma omp critical
@@ -571,7 +584,7 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
             next++;
           }
           if(next < avails->size()) break;
-          if(nearfull) util::log::fatal{} << "No more slots to fill, still bugged?";
+          assert(!nearfull && "Ran out of slots trying to allocate inputs to ranks!");
           // Try again, but allocate more aggressively
           nearfull = true;
           next = 0;
@@ -587,7 +600,7 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
   for(auto& p_s: extra) {
     stdshim::filesystem::path p = std::move(p_s);
     auto s = ProfileSource::create_for(p);
-    if(!s) util::log::fatal{} << "Inputs have changed during preparation!";
+    if(!s) util::log::fatal{} << "Input " << p << " has changed on disk, please let it stablize before continuing!";
     sources.emplace_back(std::move(s), std::move(p));
   }
 }
@@ -614,7 +627,7 @@ static std::pair<bool, fs::path> remove_prefix(const fs::path& path, const fs::p
 
 static fs::path search(const std::unordered_map<fs::path, fs::path>& prefixes,
                        const fs::path& p) noexcept {
-  stdshim::filesystemx::error_code ec;
+  std::error_code ec;
   for(const auto& ft: prefixes) {
     auto xp = remove_prefix(p, ft.first);
     if(xp.first) {

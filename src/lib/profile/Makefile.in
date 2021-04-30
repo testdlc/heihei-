@@ -154,12 +154,12 @@ am__objects_1 = stdshim/libHPCprofile_la-shared_mutex.lo \
 	libHPCprofile_la-module.lo libHPCprofile_la-attributes.lo \
 	libHPCprofile_la-dataclass.lo libHPCprofile_la-sink.lo \
 	libHPCprofile_la-packedids.lo \
-	sources/libHPCprofile_la-hpcrun.lo \
 	sources/libHPCprofile_la-packed.lo \
 	sources/libHPCprofile_la-hpcrun4.lo \
 	sinks/libHPCprofile_la-hpctracedb2.lo \
 	sinks/libHPCprofile_la-packed.lo \
 	sinks/libHPCprofile_la-experimentxml4.lo \
+	sinks/libHPCprofile_la-sparsedb.lo \
 	finalizers/libHPCprofile_la-struct.lo \
 	finalizers/libHPCprofile_la-directclassification.lo \
 	finalizers/libHPCprofile_la-intel_def_use_graph.lo \
@@ -578,9 +578,10 @@ MYSOURCES = \
 	analyzer.cpp \
 	module.cpp attributes.cpp dataclass.cpp sink.cpp packedids.cpp \
 	\
-	sources/hpcrun.cpp sources/packed.cpp sources/hpcrun4.cpp \
+	sources/packed.cpp sources/hpcrun4.cpp \
 	\
 	sinks/hpctracedb2.cpp sinks/packed.cpp sinks/experimentxml4.cpp \
+	sinks/sparsedb.cpp \
 	\
 	finalizers/struct.cpp finalizers/directclassification.cpp \
 	finalizers/intel_def_use_graph.cpp \
@@ -591,9 +592,8 @@ MYSTANDALONESOURCES = mpi/standalone.cpp
 # GNU binutils flags are needed for HPCLIB_ISA.
 MYCFLAGS = @HOST_CFLAGS@ $(HPC_IFLAGS) @VALGRIND_IFLAGS@ \
 	-I@LIBELF_INC@ $(am__append_1)
-MYCXXFLAGS = @HOST_CXXFLAGS@ $(HPC_IFLAGS) @BOOST_IFLAGS@ \
-	@VALGRIND_IFLAGS@ @XERCES_IFLAGS@ -I@LIBELF_INC@ -std=gnu++17 \
-	$(am__append_2)
+MYCXXFLAGS = @HOST_CXXFLAGS@ $(HPC_IFLAGS) @VALGRIND_IFLAGS@ \
+	@XERCES_IFLAGS@ -I@LIBELF_INC@ -std=gnu++17 $(am__append_2)
 @IS_HOST_AR_FALSE@MYAR = $(AR) cru
 @IS_HOST_AR_TRUE@MYAR = @HOST_AR@
 MYLIBADD = @HOST_LIBTREPOSITORY@ -L@LIBELF_LIB@ -ldw -lelf
@@ -701,8 +701,6 @@ sources/$(am__dirstamp):
 sources/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) sources/$(DEPDIR)
 	@: > sources/$(DEPDIR)/$(am__dirstamp)
-sources/libHPCprofile_la-hpcrun.lo: sources/$(am__dirstamp) \
-	sources/$(DEPDIR)/$(am__dirstamp)
 sources/libHPCprofile_la-packed.lo: sources/$(am__dirstamp) \
 	sources/$(DEPDIR)/$(am__dirstamp)
 sources/libHPCprofile_la-hpcrun4.lo: sources/$(am__dirstamp) \
@@ -718,6 +716,8 @@ sinks/libHPCprofile_la-hpctracedb2.lo: sinks/$(am__dirstamp) \
 sinks/libHPCprofile_la-packed.lo: sinks/$(am__dirstamp) \
 	sinks/$(DEPDIR)/$(am__dirstamp)
 sinks/libHPCprofile_la-experimentxml4.lo: sinks/$(am__dirstamp) \
+	sinks/$(DEPDIR)/$(am__dirstamp)
+sinks/libHPCprofile_la-sparsedb.lo: sinks/$(am__dirstamp) \
 	sinks/$(DEPDIR)/$(am__dirstamp)
 finalizers/$(am__dirstamp):
 	@$(MKDIR_P) finalizers
@@ -787,7 +787,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@sinks/$(DEPDIR)/libHPCprofile_la-experimentxml4.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@sinks/$(DEPDIR)/libHPCprofile_la-hpctracedb2.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@sinks/$(DEPDIR)/libHPCprofile_la-packed.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sources/$(DEPDIR)/libHPCprofile_la-hpcrun.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@sinks/$(DEPDIR)/libHPCprofile_la-sparsedb.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@sources/$(DEPDIR)/libHPCprofile_la-hpcrun4.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@sources/$(DEPDIR)/libHPCprofile_la-packed.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@stdshim/$(DEPDIR)/libHPCprofile_la-atomic.Plo@am__quote@
@@ -980,13 +980,6 @@ libHPCprofile_la-packedids.lo: packedids.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) -c -o libHPCprofile_la-packedids.lo `test -f 'packedids.cpp' || echo '$(srcdir)/'`packedids.cpp
 
-sources/libHPCprofile_la-hpcrun.lo: sources/hpcrun.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) -MT sources/libHPCprofile_la-hpcrun.lo -MD -MP -MF sources/$(DEPDIR)/libHPCprofile_la-hpcrun.Tpo -c -o sources/libHPCprofile_la-hpcrun.lo `test -f 'sources/hpcrun.cpp' || echo '$(srcdir)/'`sources/hpcrun.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) sources/$(DEPDIR)/libHPCprofile_la-hpcrun.Tpo sources/$(DEPDIR)/libHPCprofile_la-hpcrun.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sources/hpcrun.cpp' object='sources/libHPCprofile_la-hpcrun.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) -c -o sources/libHPCprofile_la-hpcrun.lo `test -f 'sources/hpcrun.cpp' || echo '$(srcdir)/'`sources/hpcrun.cpp
-
 sources/libHPCprofile_la-packed.lo: sources/packed.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) -MT sources/libHPCprofile_la-packed.lo -MD -MP -MF sources/$(DEPDIR)/libHPCprofile_la-packed.Tpo -c -o sources/libHPCprofile_la-packed.lo `test -f 'sources/packed.cpp' || echo '$(srcdir)/'`sources/packed.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) sources/$(DEPDIR)/libHPCprofile_la-packed.Tpo sources/$(DEPDIR)/libHPCprofile_la-packed.Plo
@@ -1021,6 +1014,13 @@ sinks/libHPCprofile_la-experimentxml4.lo: sinks/experimentxml4.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sinks/experimentxml4.cpp' object='sinks/libHPCprofile_la-experimentxml4.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) -c -o sinks/libHPCprofile_la-experimentxml4.lo `test -f 'sinks/experimentxml4.cpp' || echo '$(srcdir)/'`sinks/experimentxml4.cpp
+
+sinks/libHPCprofile_la-sparsedb.lo: sinks/sparsedb.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) -MT sinks/libHPCprofile_la-sparsedb.lo -MD -MP -MF sinks/$(DEPDIR)/libHPCprofile_la-sparsedb.Tpo -c -o sinks/libHPCprofile_la-sparsedb.lo `test -f 'sinks/sparsedb.cpp' || echo '$(srcdir)/'`sinks/sparsedb.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) sinks/$(DEPDIR)/libHPCprofile_la-sparsedb.Tpo sinks/$(DEPDIR)/libHPCprofile_la-sparsedb.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='sinks/sparsedb.cpp' object='sinks/libHPCprofile_la-sparsedb.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) -c -o sinks/libHPCprofile_la-sparsedb.lo `test -f 'sinks/sparsedb.cpp' || echo '$(srcdir)/'`sinks/sparsedb.cpp
 
 finalizers/libHPCprofile_la-struct.lo: finalizers/struct.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libHPCprofile_la_CXXFLAGS) $(CXXFLAGS) -MT finalizers/libHPCprofile_la-struct.lo -MD -MP -MF finalizers/$(DEPDIR)/libHPCprofile_la-struct.Tpo -c -o finalizers/libHPCprofile_la-struct.lo `test -f 'finalizers/struct.cpp' || echo '$(srcdir)/'`finalizers/struct.cpp

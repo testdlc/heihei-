@@ -78,9 +78,10 @@ MYSOURCES = \
 	analyzer.cpp \
 	module.cpp attributes.cpp dataclass.cpp sink.cpp packedids.cpp \
 	\
-	sources/hpcrun.cpp sources/packed.cpp sources/hpcrun4.cpp \
+	sources/packed.cpp sources/hpcrun4.cpp \
 	\
 	sinks/hpctracedb2.cpp sinks/packed.cpp sinks/experimentxml4.cpp \
+	sinks/sparsedb.cpp \
 	\
 	finalizers/struct.cpp finalizers/directclassification.cpp \
 	finalizers/intel_def_use_graph.cpp \
@@ -90,8 +91,8 @@ MYSTANDALONESOURCES = mpi/standalone.cpp
 
 # GNU binutils flags are needed for HPCLIB_ISA.
 MYCFLAGS   = @HOST_CFLAGS@   $(HPC_IFLAGS) @VALGRIND_IFLAGS@ -I@LIBELF_INC@
-MYCXXFLAGS = @HOST_CXXFLAGS@ $(HPC_IFLAGS) @BOOST_IFLAGS@ @VALGRIND_IFLAGS@ \
-						 @XERCES_IFLAGS@ -I@LIBELF_INC@ -std=gnu++17
+MYCXXFLAGS = @HOST_CXXFLAGS@ $(HPC_IFLAGS) @VALGRIND_IFLAGS@ @XERCES_IFLAGS@ \
+             -I@LIBELF_INC@ -std=gnu++17
 
 if OPT_ENABLE_OPENMP
 MYCFLAGS += $(OPENMP_FLAG)

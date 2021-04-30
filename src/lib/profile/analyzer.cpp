@@ -47,7 +47,6 @@
 #include "analyzer.hpp"
 
 #include "util/log.hpp"
-#include "sources/hpcrun.hpp"
 #include "sources/hpcrun4.hpp"
 
 #include <stdexcept>
