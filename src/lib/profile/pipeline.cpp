@@ -125,6 +125,15 @@ Settings& Settings::operator<<(std::unique_ptr<ProfileTransformer>&& tp) {
   up_transformers.emplace_back(std::move(tp));
   return operator<<(*up_transformers.back());
 }
+Settings& Settings::operator<<(ProfileAnalyzer& a) {
+  analyzers.emplace_back(a);
+  return *this;
+}
+Settings& Settings::operator<<(std::unique_ptr<ProfileAnalyzer>&& ap) {
+  if(!ap) return *this;
+  up_analyzers.emplace_back(std::move(ap));
+  return operator<<(*up_analyzers.back());
+}
 
 ProfilePipeline::ProfilePipeline(Settings&& b, std::size_t team_sz)
   : detail::ProfilePipelineBase(std::move(b)), team_size(team_sz),
@@ -350,8 +359,9 @@ void ProfilePipeline::run() {
       for(auto& t: sl.threads) {
         Metric::prefinalize(t);
         if(t.contributesToCollab) continue;
-        ProfileAnalyzer pa;
-        pa.analyze(t);
+        for(auto& a: analyzers) {
+          a.get().analyze(t);
+        }
         Metric::finalize(t);
         for(auto& s: sinks)
           if(s.dataLimit.hasThreads()) s().notifyThreadFinal(t);
@@ -530,11 +540,12 @@ ExtraStatistic& Source::extraStatistic(ExtraStatistic::Settings s) {
 
 void Source::metricFreeze(Metric& m) {
   if(m.freeze()) {
+    for(auto& a: pipe->analyzers) {
+      a.get().analysisMetricsFor(m);
+    }
     for(auto& s: pipe->sinks) {
       if(s.dataLimit.hasAttributes()) s().notifyMetric(m);
     }
-    ProfileAnalyzer pa;
-    pa.analysisMetricsFor(m);
     m.userdata.initialize();
   }
   slocal->thawedMetrics.erase(&m);
@@ -542,6 +553,9 @@ void Source::metricFreeze(Metric& m) {
 
 Context& Source::global() { return *pipe->cct; }
 void Source::notifyContext(Context& c) {
+  for(auto& a: pipe->analyzers) {
+    a.get().context(c);
+  }
   for(auto& s: pipe->sinks) {
     if(s.dataLimit.hasContexts()) s().notifyContext(c);
   }
