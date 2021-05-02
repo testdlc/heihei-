@@ -175,8 +175,8 @@ SuperpositionedContext::SuperpositionedContext(Context& root, std::vector<Target
   }) && "Attempt to Superposition with inconsistent collaborations between Targets!");
 }
 
-SuperpositionedContext::Target::Target(std::vector<ContextRef> r, ContextRef t, double factor)
-  : route(std::move(r)), target(t), factor(factor) {
+SuperpositionedContext::Target::Target(std::vector<ContextRef> r, ContextRef t)
+  : route(std::move(r)), target(t) {
   assert(!std::holds_alternative<CollaborativeContext>(t) && "Attempt to superpos-target a Collaborative root!");
   assert(std::all_of(route.begin(), route.end(), [&](const auto& r) {
     return !std::holds_alternative<CollaborativeContext>(r);

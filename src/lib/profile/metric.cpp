@@ -414,8 +414,7 @@ void Metric::prefinalize(Thread::Temporary& t) noexcept {
       util::optional_ref<const Metric> m;
       for(const auto& ma: d->citerate()) {
         const Metric& cm = ma.first;
-        if(cm.name() == "GINS:EXC_CNT" || cm.name() == "GINS") {
-          util::log::debug{true} << "Distributor metric: " << cm.name() ; 
+        if(cm.name() == "GINS") {
           if(!m) m = cm;
           else if(&*m != &cm)
             util::log::fatal{} << "Multiple distributing Metrics in the same Context: "
@@ -470,9 +469,7 @@ void Metric::prefinalize(Thread::Temporary& t) noexcept {
           for(; cur.end != g.end; cur.end++) {
             const auto& vb = cur.begin->get().route;
             const auto& ve = cur.end->get().route;
-            if(vb.size() <= idx && ve.size() <= idx) {
-              continue;
-            }
+            if(vb.size() <= idx && ve.size() <= idx) continue;
             if(vb.size() <= idx) {
               next.push_front(cur);
               nextCnt++;
@@ -484,19 +481,16 @@ void Metric::prefinalize(Thread::Temporary& t) noexcept {
                 else if(&*distributor != &*dm)
                   util::log::fatal{} << "Multiple distributing Metrics under the same Superposition:"
                     << distributor->name() << " != " << dm->name();
-                util::log::debug{true} << "Distributor metric: " << distributor->name() ; 
                 if(auto tc = std::get_if<Context>(vb[idx]))
                   cur.value = t.data[*tc][*dm].point.load(std::memory_order_relaxed);
                 else if(auto tc = std::get_if<SuperpositionedContext>(vb[idx]))
                   cur.value = t.sp_data[*tc][*dm].point.load(std::memory_order_relaxed);
                 else abort();  // unreachable
-                cur.value *= g.begin->get().factor;
                 totalValue += cur.value;
               }
               next.push_front(cur);
               nextCnt++;
               cur.begin = cur.end;
-            } else {
             }
           }
         }
@@ -618,7 +612,7 @@ void Metric::finalize(Thread::Temporary& t) noexcept {
       global = c.get();
     }
   }
-  if(!global || children.empty()) return;  // Apparently there's nothing to propagate
+  if(!global) return;  // Apparently there's nothing to propagate
 
   // Now that the critical subtree is built, recursively propagate up.
   using md_t = decltype(t.data)::mapped_type;
