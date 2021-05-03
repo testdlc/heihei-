@@ -641,7 +641,7 @@ void ExperimentXML4::write() {
         (c.scope().type() == hpctoolkit::Scope::Type::classified_point) || (c.scope().type() == hpctoolkit::Scope::Type::classified_call) ||
         (c.scope().type() == hpctoolkit::Scope::Type::concrete_line)) {
       uint64_t offset = c.scope().point_data().second;
-      const std::string latency_metric_name = "GINS: LAT(cycles)";
+      const std::string latency_blame_metric_name = "GINS: LAT_BLAME(cycles)";
       const auto& stats = c.statistics();
 
       for(const auto& mx: stats.citerate()) {
@@ -650,7 +650,7 @@ void ExperimentXML4::write() {
           util::log::fatal{} << "Metric isn't function/execution!";
         const auto& vv = mx.second;
 
-        if (m->name().find(latency_metric_name) != std::string::npos) {
+        if (m->name().find(latency_blame_metric_name) != std::string::npos) {
           int latency = *(vv.get(m->partials()[0]).get(MetricScope::point));
           std::cout << "LATENCY_BLAME:: module: " << c.scope() << ", parent module: " << c.direct_parent()->scope() << ", offset: " << offset << ", val: " << latency << std::endl;
         }
