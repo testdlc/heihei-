@@ -845,7 +845,7 @@ hpcrun_fmt_sparse_metrics_fread(hpcrun_fmt_sparse_metrics_t* x, FILE* fs)
 int
 hpcrun_fmt_sparse_metrics_fwrite(hpcrun_fmt_sparse_metrics_t* x,FILE* fs)
 {
-  //HPCFMT_ThrowIfError(hpcfmt_int4_fwrite(x->tid, fs));
+
   HPCFMT_ThrowIfError(id_tuple_fwrite(&(x->id_tuple), fs));
   HPCFMT_ThrowIfError(hpcfmt_int8_fwrite(x->num_vals, fs));
   HPCFMT_ThrowIfError(hpcfmt_int4_fwrite(x->num_nz_cct_nodes, fs));
