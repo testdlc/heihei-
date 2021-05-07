@@ -83,30 +83,30 @@
 // macros
 //***************************************************************************
 
-#define IDTUPLE_INVALID           UINT16_MAX
+#define IDTUPLE_INVALID             UINT16_MAX
 
-#define IDTUPLE_SUMMARY           0
-#define IDTUPLE_NODE              1
-#define IDTUPLE_RANK              2
-#define IDTUPLE_THREAD            3
-#define IDTUPLE_GPUDEVICE         4
-#define IDTUPLE_GPUCONTEXT        5
-#define IDTUPLE_GPUSTREAM         6
-#define IDTUPLE_CORE              7
+#define IDTUPLE_SUMMARY             0
+#define IDTUPLE_NODE                1
+#define IDTUPLE_RANK                2
+#define IDTUPLE_THREAD              3
+#define IDTUPLE_GPUDEVICE           4
+#define IDTUPLE_GPUCONTEXT          5
+#define IDTUPLE_GPUSTREAM           6
+#define IDTUPLE_CORE                7
 
-#define IDTUPLE_MAXTYPES          8
+#define IDTUPLE_MAXTYPES            8
 
-#define PMS_id_tuple_len_SIZE     2
-#define PMS_id_SIZE               10
+#define PMS_id_tuple_len_SIZE       2
+#define PMS_id_SIZE                 18
 
-#define IDTUPLE_IDS_BOTH_VALID    0     // "00"
-#define IDTUPLE_IDS_LOGIC_LOCAL   32768 // "10"
-#define IDTUPLE_IDS_LOGIC_GLOBAL  16384 // "01"
-#define IDTUPLE_IDS_LOGIC_ONLY    49152 // "11"
+#define IDTUPLE_IDS_BOTH_VALID      0  
+#define IDTUPLE_IDS_LOGIC_LOCAL     1 
+#define IDTUPLE_IDS_LOGIC_GLOBAL    2 
+#define IDTUPLE_IDS_LOGIC_ONLY      3 
 
-#define ADD_INTERPRET_BITS(kind, bits) (kind | bits)
-#define INTERPRET_ID_TYPE(kind)   (kind & 49152)
-#define INTERPRET_ID_KIND(kind)   (kind & 16383)
+#define IDTUPLE_GET_INTERPRET(kind) (((kind)>>14) & 0x3)
+#define IDTUPLE_GET_KIND(kind)      ((kind) & ((1<<14)-1))
+#define IDTUPLE_COMPOSE(kind, intr) (((uint16_t)(intr) << 14) | (kind))
 
 //***************************************************************************
 // types

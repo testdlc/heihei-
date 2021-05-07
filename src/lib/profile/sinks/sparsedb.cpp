@@ -559,7 +559,9 @@ std::vector<char> SparseDB::convertTuple2Bytes(const id_tuple_t& tuple)
 
     b = convertToByte2(id.kind);
     bytes.insert(bytes.end(), b.begin(), b.end());
-    b = convertToByte8(id.index);
+    b = convertToByte8(id.physical_index);
+    bytes.insert(bytes.end(), b.begin(), b.end());
+    b = convertToByte8(id.logical_index);
     bytes.insert(bytes.end(), b.begin(), b.end());
   }
 
