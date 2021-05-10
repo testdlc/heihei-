@@ -436,11 +436,11 @@ public:
 
 template<class... Ts>
 class hash<hpctoolkit::util::variant_ref<Ts...>> {
-  hash<typename hpctoolkit::util::variant_ref<Ts...>::Base> realhash;
+  hash<decltype(hpctoolkit::util::variant_ref<Ts...>::d)> realhash;
 
 public:
   constexpr std::size_t operator()(const hpctoolkit::util::variant_ref<Ts...>& v) const noexcept {
-    return realhash(v);
+    return realhash(v.d);
   }
 };
 
