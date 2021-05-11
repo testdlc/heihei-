@@ -199,12 +199,22 @@ public:
   /// return `nullptr` if the variable is not known to be set.
   // MT: Externally Synchronized
   const std::string* environment(const std::string& var) const noexcept;
-  void environment(const std::string& var, const std::string& val);
+  void environment(std::string var, std::string val);
 
   /// Access the entire environment for this profile.
   // MT: Unstable (const)
   const std::unordered_map<std::string, std::string>& environment() const noexcept {
     return m_env;
+  }
+
+  /// Append to the hierarchical tuple name dictionary
+  // MT: Externally Synchronized
+  void idtupleName(uint16_t kind, std::string name);
+
+  /// Access the entire hierarchical tuple name dictionary
+  // MT: Unstable (const)
+  const std::unordered_map<uint16_t, std::string>& idtupleNames() const noexcept {
+    return m_idtupleNames;
   }
 
   /// Merge another PAttr into this one. Uses the given callback to issue
@@ -218,6 +228,7 @@ private:
   std::optional<unsigned long> m_job;
   std::optional<stdshim::filesystem::path> m_path;
   std::unordered_map<std::string, std::string> m_env;
+  std::unordered_map<uint16_t, std::string> m_idtupleNames;
 };
 
 }

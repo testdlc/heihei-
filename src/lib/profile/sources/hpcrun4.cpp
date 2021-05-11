@@ -118,21 +118,36 @@ Hpcrun4::Hpcrun4(const stdshim::filesystem::path& fn)
     }
   }
   hpcrun_fmt_hdr_free(&hdr, std::free);
-  // Try to read the hierarchical tuple, if we fail synth from the header data
-  id_tuple_t sfTuple;
-  if(hpcrun_sparse_read_id_tuple(file, &sfTuple) == SF_SUCCEED) {
+  // Try to read the hierarchical tuple, failure is fatal for this Source
+  {
+    id_tuple_t sfTuple;
+    if(hpcrun_sparse_read_id_tuple(file, &sfTuple) != SF_SUCCEED) {
+      util::log::error{} << "Invalid profile identifier tuple in: "
+                           << path.string();
+      hpcrun_sparse_close(file);
+      fileValid = false;
+      return;
+    }
     std::vector<pms_id_t> tuple;
     tuple.reserve(sfTuple.length);
     for(size_t i = 0; i < sfTuple.length; i++)
       tuple.push_back(sfTuple.ids[i]);
     id_tuple_free(&sfTuple);
     tattrs.idTuple(std::move(tuple));
-  } else {
-    util::log::error{} << "Invalid profile identifier tuple in: "
-                         << path.string();
-    hpcrun_sparse_close(file);
-    fileValid = false;
-    return;
+  }
+  // Try and read the dictionary for the tuple, failure is fatal for this Source
+  {
+    hpcrun_fmt_idtuple_dxnry_t dict;
+    if(hpcrun_sparse_read_idtuple_dxnry(file, &dict) != SF_SUCCEED) {
+      util::log::error{} << "Invalid profile identifier dictionary in: "
+                           << path.string();
+      hpcrun_sparse_close(file);
+      fileValid = false;
+      return;
+    }
+    for(int i = 0; i < dict.num_entries; i++)
+      attrs.idtupleName(dict.dictionary[i].kind, dict.dictionary[i].kindStr);
+    hpcrun_fmt_idtuple_dxnry_free(&dict, std::free);
   }
   // If all went well, we can pause the file here.
   hpcrun_sparse_pause(file);

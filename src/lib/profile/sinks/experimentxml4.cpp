@@ -554,6 +554,11 @@ void ExperimentXML4::write() {
         "<SecCallPathProfile i=\"0\" n=" << util::xmlquoted(name) << ">\n"
         "<SecHeader>\n";
 
+  of << "<IdentifierNameTable>\n";
+  for(const auto& kv: src.attributes().idtupleNames())
+    of << "<Identifier i=\"" << kv.first << "\" n=" << util::xmlquoted(kv.second) << "/>\n";
+  of << "</IdentifierNameTable>\n";
+
   // MetricTable: from the Metrics
   of << "<MetricTable>\n";
   unsigned int id = 0;

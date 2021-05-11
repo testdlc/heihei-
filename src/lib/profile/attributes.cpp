@@ -84,10 +84,14 @@ const std::string* ProfileAttributes::environment(const std::string& v) const no
   if(it == m_env.end()) return nullptr;
   return &it->second;
 }
-void ProfileAttributes::environment(const std::string& var,
-                                    const std::string& val) {
+void ProfileAttributes::environment(std::string var, std::string val) {
   assert(m_env.count(var) == 0 && "Attempt to overwrite a previously set profile environment variable!");
-  m_env.emplace(var, val);
+  m_env.emplace(std::move(var), std::move(val));
+}
+
+void ProfileAttributes::idtupleName(uint16_t kind, std::string name) {
+  assert(m_idtupleNames.count(kind) == 0 && "Attempt to overwrite a previously set profile idtuple name!");
+  m_idtupleNames.emplace(kind, std::move(name));
 }
 
 void ThreadAttributes::procid(unsigned long pid) {
@@ -174,6 +178,16 @@ bool ProfileAttributes::merge(const ProfileAttributes& o) {
     else if(it->second != e.second) {
       util::log::warning() << "Merging profiles with different values for environment `"
         << e.first << "': `" << it->second << "' and `" << e.second << "'!";
+      ok = false;
+    }
+  }
+
+  for(const auto& e: o.m_idtupleNames) {
+    auto it = m_idtupleNames.find(e.first);
+    if(it == m_idtupleNames.end()) m_idtupleNames.insert(e);
+    else if(it->second != e.second) {
+      util::log::warning() << "Merging profiles with different values for tuple kind "
+        << e.first << ": '" << it->second << "' and '" << e.second << "'!";
       ok = false;
     }
   }

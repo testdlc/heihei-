@@ -65,9 +65,14 @@ static void pack(std::vector<std::uint8_t>& out, const std::string& s) noexcept 
 static void pack(std::vector<std::uint8_t>& out, const std::uint8_t v) noexcept {
   out.push_back(v);
 }
+static void pack(std::vector<std::uint8_t>& out, const std::uint16_t v) noexcept {
+  // Little-endian order. Just in case the compiler can optimize it away.
+  for(int shift = 0; shift < 16; shift += 8)
+    out.push_back((v >> shift) & 0xff);
+}
 static void pack(std::vector<std::uint8_t>& out, const std::uint64_t v) noexcept {
   // Little-endian order. Just in case the compiler can optimize it away.
-  for(int shift = 0x00; shift < 0x40; shift += 0x08)
+  for(int shift = 0; shift < 64; shift += 8)
     out.push_back((v >> shift) & 0xff);
 }
 static void pack(std::vector<std::uint8_t>& out, const double v) noexcept {
@@ -87,9 +92,14 @@ void Packed::packAttributes(std::vector<std::uint8_t>& out) noexcept {
   pack(out, (std::uint64_t)attr.job().value_or(0xFEF1F0F3ULL << 32));
   pack(out, attr.name().value_or(""));
   pack(out, attr.path() ? attr.path()->string() : "");
-  pack(out, attr.environment().size());
+  pack(out, (std::uint64_t)attr.environment().size());
   for(const auto& kv: attr.environment()) {
     pack(out, kv.first);
+    pack(out, kv.second);
+  }
+  pack(out, (std::uint64_t)attr.idtupleNames().size());
+  for(const auto& kv: attr.idtupleNames()) {
+    pack(out, (std::uint16_t)kv.first);
     pack(out, kv.second);
   }
 
