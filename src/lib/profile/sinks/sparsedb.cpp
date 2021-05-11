@@ -617,7 +617,8 @@ void SparseDB::workIdTuplesSection()
     idt.length = IDTUPLE_SUMMARY_LENGTH;
     idt.ids = (pms_id_t*)malloc(idt.length * sizeof(pms_id_t));
     idt.ids[0].kind = IDTUPLE_SUMMARY;
-    idt.ids[0].index= IDTUPLE_SUMMARY_IDX;
+    idt.ids[0].physical_index = IDTUPLE_SUMMARY_IDX;
+    idt.ids[0].logical_index = IDTUPLE_SUMMARY_IDX;
 
     id_tuples[0] = std::move(idt);
     id_tuple_ptrs[0] = PMS_id_tuple_len_SIZE + idt.length * PMS_id_SIZE;

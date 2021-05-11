@@ -76,18 +76,6 @@ public:
   ThreadAttributes(const ThreadAttributes& o) = default;
   ~ThreadAttributes() = default;
 
-  /// Get the ID of the host that ran this Thread.
-  // MT: Externally Synchronized
-  const std::optional<uint32_t>& hostid() const noexcept { return m_hostid; }
-
-  /// Get the MPI rank of this Thread.
-  // MT: Externally Synchronized
-  const std::optional<unsigned long>& mpirank() const noexcept { return m_mpirank; }
-
-  /// Get the thread id of this Thread.
-  // MT: Externally Synchronized
-  const std::optional<unsigned long>& threadid() const noexcept { return m_threadid; }
-
   /// Get or set the process id of this Thread.
   // MT: Externally Synchronized
   const std::optional<unsigned long>& procid() const noexcept { return m_procid; }
@@ -102,7 +90,7 @@ public:
   /// be empty.
   // MT: Externally Synchronized
   const std::vector<pms_id_t>& idTuple() const noexcept;
-  void idTuple(const std::vector<pms_id_t>&);
+  void idTuple(std::vector<pms_id_t>);
 
 private:
   // TODO: Remove these 4 fields and replace the bits above with functions that
@@ -110,9 +98,6 @@ private:
   // set once, probably during construction. All after the the other kind
   // constants are set up.
   // Then, later, remove those shims and just use idTuples moving forward.
-  std::optional<uint32_t> m_hostid;
-  std::optional<unsigned long> m_mpirank;
-  std::optional<unsigned long> m_threadid;
   std::optional<unsigned long> m_procid;
   std::optional<unsigned long long> m_timepointCnt;
   mutable std::vector<pms_id_t> m_idTuple;

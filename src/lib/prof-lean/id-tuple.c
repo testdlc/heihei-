@@ -78,35 +78,27 @@
 
 //***************************************************************************
 
-const char* 
-kindStr(const uint16_t kind)
-{
-  if(kind == IDTUPLE_SUMMARY){
-    return "SUMMARY";
+static void printKind(FILE* fs, const uint16_t kind) {
+  const char* intr = "ERR";
+  switch(IDTUPLE_GET_INTERPRET(kind)) {
+  case IDTUPLE_IDS_BOTH_VALID: intr = "BOTH"; break;
+  case IDTUPLE_IDS_LOGIC_LOCAL: intr = "GEN LOCAL"; break;
+  case IDTUPLE_IDS_LOGIC_GLOBAL: intr = "GEN GLOBAL"; break;
+  case IDTUPLE_IDS_LOGIC_ONLY: intr = "SINGLE"; break;
   }
-  else if(kind == IDTUPLE_NODE){
-    return "NODE";
-  }
-  else if(kind == IDTUPLE_RANK){
-    return "RANK";
-  }
-  else if(kind == IDTUPLE_THREAD){
-    return "THREAD";
-  }
-  else if(kind == IDTUPLE_GPUDEVICE){
-    return "GPUDEVICE";
-  }
-  else if(kind == IDTUPLE_GPUCONTEXT){
-    return "GPUCONTEXT";
-  }
-  else if(kind == IDTUPLE_GPUSTREAM){
-    return "GPUSTREAM";
-  }
-  else if(kind == IDTUPLE_CORE){
-    return "CORE";
-  }
-  else{
-    return "ERROR";
+  switch(IDTUPLE_GET_KIND(kind)) {
+  case IDTUPLE_SUMMARY:
+    fprintf(fs, "SUMMARY");
+    if(kind != IDTUPLE_SUMMARY) fprintf(fs, "[%s]", intr);
+    break;
+  case IDTUPLE_NODE: fprintf(fs, "NODE(%s)", intr); break;
+  case IDTUPLE_RANK: fprintf(fs, "RANK(%s)", intr); break;
+  case IDTUPLE_THREAD: fprintf(fs, "THREAD(%s)", intr); break;
+  case IDTUPLE_GPUDEVICE: fprintf(fs, "GPUDEVICE(%s)", intr); break;
+  case IDTUPLE_GPUCONTEXT: fprintf(fs, "GPUCONTEXT(%s)", intr); break;
+  case IDTUPLE_GPUSTREAM: fprintf(fs, "GPUSTREAM(%s)", intr); break;
+  case IDTUPLE_CORE: fprintf(fs, "CORE(%s)", intr); break;
+  default: fprintf(fs, "[%"PRIu16"](%s)", IDTUPLE_GET_KIND(kind), intr); break;
   }
 }
 
@@ -193,7 +185,16 @@ id_tuple_fprint(id_tuple_t* x, FILE* fs)
 {
     fprintf(fs,"[");
     for (uint j = 0; j < x->length; ++j) {
-      fprintf(fs,"(%s: %ld, %ld) ", kindStr(x->ids[j].kind), x->ids[j].physical_index, x->ids[j].logical_index);
+      fprintf(fs, "(");
+      printKind(fs, x->ids[j].kind);
+      if(x->ids[j].kind != IDTUPLE_SUMMARY) {
+        if(IDTUPLE_GET_INTERPRET(x->ids[j].kind) == IDTUPLE_IDS_LOGIC_ONLY)
+          fprintf(fs,": %"PRIu64") ", x->ids[j].logical_index);
+        else
+          fprintf(fs,": %"PRIu64", %"PRIu64") ", x->ids[j].physical_index,
+                  x->ids[j].logical_index);
+      } else
+        fprintf(fs, ")");
     }
     fprintf(fs,"]\n");
     return HPCFMT_OK;

@@ -128,21 +128,11 @@ Hpcrun4::Hpcrun4(const stdshim::filesystem::path& fn)
     id_tuple_free(&sfTuple);
     tattrs.idTuple(std::move(tuple));
   } else {
-    util::log::warning{} << "Synthesizing hierarchical tuple for: "
+    util::log::error{} << "Invalid profile identifier tuple in: "
                          << path.string();
-    std::vector<pms_id_t> tuple;
-    if(hostid) tuple.push_back({.kind = IDTUPLE_NODE, .index=*hostid});
-    if(threadid && *threadid >= 500)  // GPUDEVICE goes before RANK
-      tuple.push_back({.kind = IDTUPLE_GPUDEVICE, .index=0});
-    if(mpirank) tuple.push_back({.kind = IDTUPLE_RANK, .index=*mpirank});
-    if(threadid) {
-      if(*threadid >= 500) {  // GPU stream
-        tuple.push_back({.kind = IDTUPLE_GPUCONTEXT, .index=0});
-        tuple.push_back({.kind = IDTUPLE_GPUSTREAM, .index=*threadid - 500});
-      } else
-        tuple.push_back({.kind = IDTUPLE_THREAD, .index=*threadid});
-    }
-    tattrs.idTuple(std::move(tuple));
+    hpcrun_sparse_close(file);
+    fileValid = false;
+    return;
   }
   // If all went well, we can pause the file here.
   hpcrun_sparse_pause(file);
