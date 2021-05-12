@@ -62,6 +62,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "lib/profile/sinks/FORMATS.md.inc"
+
 using namespace hpctoolkit;
 using namespace hpctoolkit::sinks;
 
@@ -333,6 +335,12 @@ void SparseDB::write()
   //write CCT major
   writeCCTMajor();
 
+  // Dump the FORMATS.md file
+  try {
+    std::ofstream(dir / "FORMATS.md") << FORMATS_md;
+  } catch(std::exception& e) {
+    util::log::warning{} << "Error while writing out FORMATS.md file";
+  }
 }
 
 //***************************************************************************
