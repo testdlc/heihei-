@@ -434,7 +434,17 @@ ExperimentXML4::udContext::udContext(const Context& c, ExperimentXML4& exml)
       pre = ss.str();
       premetrics = true;
       post = "</PF>\n";
+    } else {
+      auto fl = s.line_data();
+      auto parent_file = c.direct_parent()->scope().function_data().file;
+      if (&fl.first != parent_file) {
+        std::ostringstream ss;
+        ss << "<F>\n";
+        pre = ss.str();
+        post = "</F>\n";
+      }
     }
+
     open = "<";
     std::ostringstream ss;
     ss << " i=\"" << c.userdata[exml.src.identifier()] << "\""
