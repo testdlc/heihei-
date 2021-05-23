@@ -111,10 +111,10 @@ a particular calling context can be obtained through a simple binary search.
 The `profile.db` has the following overall structure:
 
     |--- Header ----------------------------------| Offset (dec hex), field size
-    | Magic identifier ("HPCPROF-tmsdb___")       |  0  0, 16 bytes
+    | Magic identifier ("HPCPROF-profdb__")       |  0  0, 16 bytes
     | Version (major, minor. Currently 4.0)       | 16 10,  2 bytes
     | Number of profiles (num_prof)               | 18 12,  4 bytes
-    | Number of sections (num_sec)                | 22 16,  2 bytes
+    | Number of sections in this header (num_sec) | 22 16,  2 bytes
     | Profile Info section size (pi_size)         | 24 18,  8 bytes
     | Profile Info section offset (pi_ptr)        | 32 20,  8 bytes
     | Identifier Tuple section size (idt_size)    | 40 28,  8 bytes
@@ -124,7 +124,7 @@ The `profile.db` has the following overall structure:
     | Profile Info index 0 (see below)            |  0  0, 52 bytes
     | Profile Info index 1                        | 52 34, 52 bytes
     | ...                                         | ...
-    | Profile Info index (num_prof)               | ** **, 52 bytes
+    | Profile Info index (num_prof - 1)           | ** **, 52 bytes
     |                                             |
     |--- Identifier Tuple section ----------------| (idt_ptr), (idt_size)
     | Hierarchical Identifier Tuple (see below)   |  0  0, ** bytes
@@ -140,18 +140,41 @@ The `profile.db` has the following overall structure:
 
 ### Profile Info ###
 
+Each profile info has the following structure:
+
+    |----------------------------------------------| 52 bytes
+    | Identifier Tuple pointer                     |  0  0, 8 bytes
+    | Metadata pointer                             |  8  8, 8 bytes
+    | Spare one pointer                            | 16 10, 8 bytes
+    | Spare two pointer                            | 24 18, 8 bytes
+    | Number of non-zero values (num_vals)         | 32 20, 8 bytes
+    | Number of non-zero contexts (num_nzctxs)     | 40 28, 4 bytes
+    | Profile Sparse Value Block offset (prof_off) | 44 2C, 8 bytes
+    |----------------------------------------------|
+
+Notes:
+- `Identifier Tuple pointer` points to the Identifier Tuple of this profile, 
+in Identifier Tuple section. 
+- `Metadata pointer`, `Sparse one pointer`, and `Sparse two pointer` are reserved 
+for future usage. They are empty (0) right now. 
+- The order of profile infos in this section is random, but index 0 is always
+a summary profile. We call the implicit index of a profile info `prof_info_idx`.
+- To access a specific profile info: `pi_ptr + 52 * prof_info_idx`.
+
 ### Hierarchical Identifier Tuple ###
 
 Each identifier tuple has the following structure:
 
-    |----------------------------------------------| 2 + 10*(len) bytes
+    |----------------------------------------------| 2 + 18*(len) bytes
     | Number of identifier elements (len)          |  0  0, 2 bytes
-    | {                                            |  2  2
+    |                                              |  2  2    
+    | { //each identifier element                  | 
     |   Identifier kind                            | +  0  0, 2 bytes
-    |   Identifier value                           | +  2  2, 8 bytes
+    |   Identifier physical_value                  | +  2  2, 8 bytes
+    |   Identifier logical_value                   | + 10  A, 8 bytes
     | } ...                                        |
 
-An element's `value` is interpreted based on its `kind`, as one of:
+An element's `xxx_value` is interpreted based on its `kind`, as one of:
  - `1` "Node": The individual compute node executed on. `value` is the value
    returned by a call to `gethostid()`.
  - `2` "Rank": The MPI rank assigned to the process. `values` is the assigned
@@ -165,8 +188,113 @@ An element's `value` is interpreted based on its `kind`, as one of:
 
 ### Profile Sparse Value Block ###
 
+Each sparse value block has the following structure:
+
+    |----------------------------------------------| num_vals * 10 + ( num_nzctxs + 1 ) * 12 bytes
+    | { // (non-zero value, metric id) pair        |
+    |   Non-zero value                             | +  0  0, 8 bytes
+    |   Metric id                                  | +  8  8, 2 bytes
+    | } ...                                        |
+    |                                              |
+    | { // (context id, context index) pair        | 
+    |   Context id                                 | +  0  0, 4 bytes
+    |   Context index                              | +  4  4, 8 bytes
+    | } ...                                        |
+    | End marker for the last context              | + ** **, 4 bytes
+    | End context index                            | + ** **, 8 bytes
+    |----------------------------------------------|
+
+For each profile:
+- `(non-zero value, metric id) pair` records a non-zero data corresponding to a specific 
+metric with `metric id`. 
+- `(context id, context index) pair` records a calling context that has at least one non-zero
+data related to. `context id` is its assigned id. `context index` is the index of the first
+`(non-zero value, metric id) pair` of this calling context, in the `(non-zero value, metric id) pair` 
+section.
+- End marker for the last context is a special number: `0x656E6421`, indicating the end of 
+`(context id, context index) pair` section.
+- To access all the metrics for a specific calling context, with the context id is `c`: 
+binary search `(context id, context index) pair` section, find `(c, idx)` and the following 
+`next_idx`, jump to `prof_off + idx * 10` and read till `prof_off + next_idx * 10`.
+
 `cct.db` version 4.0
 --------------------
+
+The `cct.db` is a binary file containing the performance analysis results
+generated by `hpcprof`, arranged by calling context and in a compact sparse
+representation. Once a calling context is chosen, the analysis result for
+a particular metric can be obtained through a simple binary search.
+
+The `cct.db` has the following overall structure:
+
+    |--- Header ----------------------------------| Offset (dec hex), field size
+    | Magic identifier ("HPCPROF-cctdb___")       |  0  0, 16 bytes
+    | Version (major, minor. Currently 4.0)       | 16 10,  2 bytes
+    | Number of contexts (num_ctx)                | 18 12,  4 bytes
+    | Number of sections in this header (num_sec) | 22 16,  2 bytes
+    | Context Info section size (ci_size)         | 24 18,  8 bytes
+    | Context Info section offset (ci_ptr)        | 32 20,  8 bytes
+    |                                             |
+    |--- Context Info section --------------------| (ci_ptr), (ci_size)
+    | Context Info index 0 (see below)            |  0  0, 22 bytes
+    | Context Info index 1                        | 22 16, 22 bytes
+    | ...                                         | ...
+    | Context Info index (num_ctx - 1)            | ** **, 22 bytes
+    |                                             |
+    |--- Sparse Metric section -------------------| ** **, **
+    | Context Sparse Value Block (see below)      | ** **, **
+    | ...                                         | ...
+    |                                             |
+    |---------------------------------------------|
+    | Magic footer ("CCTDBftr" or "rtfBDTCC")     | ** **, 8 bytes
+    |---------------------------------------------| EOF
+
+
+### Context Info ###
+
+Each context info has the following structure:
+
+    |----------------------------------------------| 22 bytes
+    | Context id (ctx_id)                          |  0  0, 4 bytes
+    | Number of non-zero values (num_vals)         |  4  4, 8 bytes
+    | Number of non-zero metrics (num_nzmids)      | 12  C, 2 bytes
+    | Context Sparse Value Block offset (ctx_off)  | 14  E, 8 bytes
+    |----------------------------------------------|
+
+Notes:
+- To access a specific context info: `ci_ptr + 22 * ctx_id`.
+
+### Context Sparse Value Block ###
+
+Each sparse value block has the following structure:
+
+    |----------------------------------------------| num_vals * 12 + ( num_nzctxs + 1 ) * 10 bytes
+    | { // (non-zero value, prof_info_idx) pair    |
+    |   Non-zero value                             | +  0  0, 8 bytes
+    |   prof_info_idx (check Profile Info section) | +  8  8, 4 bytes
+    | } ...                                        |
+    |                                              |
+    | { // (metric id, metric index) pair          | 
+    |   Metric id                                  | +  0  0, 2 bytes
+    |   Metric index                               | +  2  2, 8 bytes
+    | } ...                                        |
+    | End marker for the last metric               | + ** **, 2 bytes
+    | End metric index                             | + ** **, 8 bytes
+    |----------------------------------------------|
+
+For each calling context:
+- `(non-zero value, prof_info_idx) pair` records a non-zero data corresponding to a specific 
+profile with `prof_info_idx`. 
+- `(metric id, metric index) pair` records a metric that has at least one non-zero
+data related to. `metric id` is its assigned id. `metric index` is the index of the first
+`(non-zero value, prof_info_idx) pair` of this metric, in the `(non-zero value, prof_info_idx) pair` 
+section.
+- End marker for the last metric is a special number: `0x6564`, indicating the end of 
+`(metric id, metric index) pair` section.
+- To access the data for all the profiles for a specific metric, with the metric id is `m`: 
+binary search `(metric id, metric index) pair` section, find `(m, idx)` and the following 
+`next_idx`, jump to `ctx_off + idx * 10` and read till `ctx_off + next_idx * 10`.
+
 
 `trace.db` version 4.0
 ----------------------
@@ -183,7 +311,7 @@ An element's `value` is interpreted based on its `kind`, as one of:
     | Trace Header index 0 (see below)            |  0  0, 22 bytes
     | Trace Header index 1                        | 22 16, 22 bytes
     | ...                                         | ...
-    | Trace Header index (num_traces)             | ** **, 22 bytes
+    | Trace Header index (num_traces - 1)         | ** **, 22 bytes
     |                                             |
     |--- Trace Line section -000------------------| ** **, **
     | Trace Line (see below)                      | ** **, **
@@ -196,10 +324,15 @@ An element's `value` is interpreted based on its `kind`, as one of:
 ### Trace Header ###
 
     |------------------------------------------------| 22 bytes
-    | Index of Profile Info (in profile.db)          |   0  0, 4 bytes
+    | prof_info_idx (in profile.db)                  |   0  0, 4 bytes
     | Trace type                                     |   4  4, 2 bytes
     | Offset of Trace Line start (line_ptr)          |   6  6, 8 bytes
     | Offset of Trace Line one-after-end (line_end)  |  14  e, 8 bytes
+    |------------------------------------------------|
+    
+A trace type can be:
+ - `0` calling context type
+ - `>= 1` metric type, and the number indicates metric id
 
 ### Trace Line ###
 
