@@ -1457,8 +1457,9 @@ void SparseDB::buildCtxGroupList()
 {
   uint64_t cur_size = 0;
   uint64_t total_size = ctx_off.back();
-  uint64_t size_limit = std::min<uint64_t>((uint64_t)1024*1024*1024*3,\
+  //uint64_t size_limit = std::min<uint64_t>((uint64_t)1024*1024*1024*3,\
                         round(total_size/(3 * mpi::World::size())));
+  uint64_t size_limit = round(total_size/(mpi::World::size()));
 
   ctx_group_list.emplace_back(0);
   for(uint i = 0; i < ctx_off.size() - 1; i++){
@@ -1491,19 +1492,21 @@ uint32_t SparseDB::ctxGrpIdFetch()
 
 void SparseDB::rwAllCtxGroup()
 {
-  uint32_t idx = rank - 1;
+  //uint32_t idx = rank - 1;
+  uint32_t idx = rank;
   uint32_t num_groups = ctx_group_list.size();
+  assert(num_groups == mpi::World::size()); //tmp
   std::vector<uint32_t> ctx_ids;
 
-  while(idx < num_groups - 1){
-    if(idx == -1) idx = ctxGrpIdFetch();// check if there is any group left for rank 0
-    ctx_ids.clear();
+  //while(idx < num_groups - 1){
+    //if(idx == -1) idx = ctxGrpIdFetch();// check if there is any group left for rank 0
+    //ctx_ids.clear();
     auto& start_id = ctx_group_list[idx];
     auto& end_id = ctx_group_list[idx + 1];
     for(uint i = start_id; i < end_id; i++) ctx_ids.emplace_back(i);
     rwOneCtxGroup(ctx_ids);
-    idx = ctxGrpIdFetch(); //communicate between processes to get next group => "dynamic" load balance
-  }
+    //idx = ctxGrpIdFetch(); //communicate between processes to get next group => "dynamic" load balance
+  //}
 
   parForPd.fill({});  // Make sure the workshare is non-empty
   parForPd.complete();
