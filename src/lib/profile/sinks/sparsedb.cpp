@@ -1495,7 +1495,7 @@ void SparseDB::rwAllCtxGroup()
   //uint32_t idx = rank - 1;
   uint32_t idx = rank;
   uint32_t num_groups = ctx_group_list.size();
-  assert(num_groups == mpi::World::size()); //tmp
+  assert(num_groups == mpi::World::size()+1); //tmp
   std::vector<uint32_t> ctx_ids;
 
   //while(idx < num_groups - 1){
