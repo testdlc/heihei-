@@ -1463,6 +1463,11 @@ void SparseDB::buildCtxGroupList()
 
   ctx_group_list.emplace_back(0);
   for(uint i = 0; i < ctx_off.size() - 1; i++){
+    if(ctx_group_list.size() == mpi::World::size()) {
+      ctx_group_list.emplace_back(i);
+      continue;
+    }
+
     uint64_t cur_ctx_size = ctx_off[i + 1] - ctx_off[i];
 
     if((cur_size + cur_ctx_size) > size_limit){
