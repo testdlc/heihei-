@@ -119,9 +119,6 @@ public:
   /// Number of threads to use for processing
   unsigned int threads;
 
-  /// Whether to emit line-level or instruction-level data
-  bool instructionGrain;
-
   /// Summary Statistics to include in the output
   struct Stats final {
     bool sum : 1;

@@ -197,13 +197,6 @@ std::vector<uint8_t>::const_iterator Packed::unpackContexts(iter_t it) noexcept 
       s = Scope{modules.at(midx), off};
       break;
     }
-    case (std::uint64_t)Scope::Type::call: {
-      // Format: [module id] [offset] children... [sentinal]
-      auto midx = unpack<std::uint64_t>(it);
-      auto off = unpack<std::uint64_t>(it);
-      s = Scope{Scope::call, modules.at(midx), off};
-      break;
-    }
     case (std::uint64_t)Scope::Type::unknown:
       s = Scope{};
       break;

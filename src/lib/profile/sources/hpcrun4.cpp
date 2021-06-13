@@ -393,17 +393,6 @@ bool Hpcrun4::realread(const DataClass& needed) try {
           if(ppar != nodes.end())
             return ppar->second;
 
-          // It may be in template form, in which case promote it to a call
-          auto temp = templates.find(n.id_parent);
-          if(temp != templates.end()) {
-            auto mo = temp->second.second.point_data();
-            ppar = nodes.insert({n.id_parent, {temp->second.first,
-                sink.context(temp->second.first, {Scope::call, mo.first, mo.second})
-              }}).first;
-            templates.erase(temp);
-            return ppar->second;
-          }
-
           if(n.lm_id == HPCRUN_GPU_RANGE_NODE)
             return {std::nullopt, std::nullopt};
 
@@ -454,23 +443,12 @@ bool Hpcrun4::realread(const DataClass& needed) try {
         continue;
       }
 
-      if(scope.type() == Scope::Type::point) {
-        // It might be a call node, it might not. Delay it until we know whether it has children.
-        templates.insert({id, {*par, scope}});
-      } else {  // Just emit it, it doesn't need much thought
-        nodes.insert({id, {*par, sink.context(*par, scope)}});
-      }
+      nodes.insert({id, {*par, sink.context(*par, scope)}});
     }
     if(id < 0) {
       util::log::info{} << "Error while reading cct node entry";
       return false;
     }
-
-    // If there are remaining unpromoted templates, emit them as normal points.
-    for(const auto& tmp: templates) {
-      nodes.insert({tmp.first, {tmp.second.first, sink.context(tmp.second.first, tmp.second.second)}});
-    }
-    templates.clear();
   }
   if(needed.hasMetrics()) {
     int cid;

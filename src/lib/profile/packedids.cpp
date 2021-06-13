@@ -106,9 +106,6 @@ void IdPacker::notifyContextExpansion(ContextRef::const_t from, Scope s, Context
           std::abort();
         case Scope::Type::unknown:
         case Scope::Type::point:
-        case Scope::Type::classified_point:
-        case Scope::Type::call:
-        case Scope::Type::classified_call:
           buffer.emplace_back(0);
           break;
         case Scope::Type::function:
@@ -117,7 +114,6 @@ void IdPacker::notifyContextExpansion(ContextRef::const_t from, Scope s, Context
           break;
         case Scope::Type::loop:
         case Scope::Type::line:
-        case Scope::Type::concrete_line:
           buffer.emplace_back(2);
           break;
         }
@@ -130,11 +126,9 @@ void IdPacker::notifyContextExpansion(ContextRef::const_t from, Scope s, Context
     auto cid = fc->userdata[src.identifier()];
     pack(buffer, (std::uint64_t)cid);
     switch(s.type()) {
-    case Scope::Type::point:
-    case Scope::Type::call: {
-      // Format: [call] [module id] [offset]
+    case Scope::Type::point: {
+      // Format: [module id] [offset]
       auto mo = s.point_data();
-      pack(buffer, (std::uint64_t)(s.type() == Scope::Type::call ? 1 : 0));
       pack(buffer, (std::uint64_t)mo.first.userdata[src.identifier()]);
       pack(buffer, (std::uint64_t)mo.second);
       break;
@@ -144,13 +138,10 @@ void IdPacker::notifyContextExpansion(ContextRef::const_t from, Scope s, Context
       pack(buffer, (std::uint64_t)0xF0F1F2F3ULL << 32);
       break;
     case Scope::Type::global:
-    case Scope::Type::classified_point:
-    case Scope::Type::classified_call:
     case Scope::Type::function:
     case Scope::Type::inlined_function:
     case Scope::Type::loop:
     case Scope::Type::line:
-    case Scope::Type::concrete_line:
       assert(false && "PackedIds can't handle non-point Contexts!");
       std::abort();
     }
@@ -233,7 +224,7 @@ IdUnpacker::IdUnpacker(std::vector<uint8_t>&& c) : ctxtree(std::move(c)) {
   globalid = ::unpack<std::uint64_t>(it);
 }
 
-void IdUnpacker::unpack(ProfilePipeline::Source& sink) {
+void IdUnpacker::unpack(ProfilePipeline::Source& sink) noexcept {
   auto it = ctxtree.cbegin();
   ::unpack<std::uint64_t>(it);  // Skip over the global id
 
@@ -256,10 +247,8 @@ void IdUnpacker::unpack(ProfilePipeline::Source& sink) {
       s = {};  // Unknown Scope
     } else {
       // Format: [module id] [offset]
-      auto midx = ::unpack<std::uint64_t>(it);
       auto off = ::unpack<std::uint64_t>(it);
-      if(next) s = {Scope::call, modmap.at(midx), off};
-      else s = {modmap.at(midx), off};
+      s = {modmap.at(next), off};
     }
     std::size_t cnt = ::unpack<std::uint64_t>(it);
     auto& scopes = exmap[parent][s];

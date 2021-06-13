@@ -103,10 +103,6 @@ Output Options:
                               Specify the database output format.
                               Default is `exmldb` for the usual format,
                               using `sparse` outputs in the new sparse format.
-      --never-merge-lines
-                              Always output an instruction-level database, even
-                              in cases where the output format is not able to
-                              fully support instruction-level attribution.
   -M (none|STAT[,STAT...])
                               Disable or enable generation of global
                               statistics. STAT is one of the following:
@@ -154,10 +150,9 @@ const bool string_ends_with(const std::string& a, const std::string& n) {
 }
 
 ProfArgs::ProfArgs(int argc, char* const argv[])
-  : title(), threads(1), instructionGrain(false), output(),
+  : title(), threads(1), output(),
     include_sources(true), include_traces(true), include_thread_local(true),
     format(Format::sparse), dwarfMaxSize(100*1024*1024), valgrindUnclean(false) {
-  int arg_instructionGrain = instructionGrain;
   int arg_includeSources = include_sources;
   int arg_includeTraces = include_traces;
   int arg_overwriteOutput = 0;
@@ -176,7 +171,6 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
     {"replace-prefix", required_argument, NULL, 'R'},
     {"title", required_argument, NULL, 'n'},
     {"format", required_argument, NULL, 'f'},
-    {"never-merge-lines", no_argument, &arg_instructionGrain, 1},
     {"no-traces", no_argument, &arg_includeTraces, 0},
     {"no-source", no_argument, &arg_includeSources, 0},
     {"name", required_argument, NULL, 'n'},
@@ -382,7 +376,6 @@ ProfArgs::ProfArgs(int argc, char* const argv[])
     }
   }
 
-  instructionGrain = arg_instructionGrain;
   include_sources = arg_includeSources;
   include_traces = arg_includeTraces;
   valgrindUnclean = arg_valgrindUnclean;

@@ -162,8 +162,7 @@ void Packed::packContexts(std::vector<std::uint8_t>& out) noexcept {
   src.contexts().citerate([&](const Context& c){
     pack(out, (std::uint64_t)c.scope().type());
     switch(c.scope().type()) {
-    case Scope::Type::point:
-    case Scope::Type::call: {
+    case Scope::Type::point: {
       // Format: <type> [module id] [offset] children... [sentinal]
       auto mo = c.scope().point_data();
       pack(out, moduleIDs.at(&mo.first));
@@ -174,13 +173,10 @@ void Packed::packContexts(std::vector<std::uint8_t>& out) noexcept {
     case Scope::Type::global:
       // Format: <type> children... [sentinal]
       break;
-    case Scope::Type::classified_point:
-    case Scope::Type::classified_call:
     case Scope::Type::function:
     case Scope::Type::inlined_function:
     case Scope::Type::loop:
     case Scope::Type::line:
-    case Scope::Type::concrete_line:
       assert(false && "Unhandled Scope type in Packed!");
       std::abort();
     }
