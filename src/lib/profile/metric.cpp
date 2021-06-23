@@ -599,7 +599,7 @@ void Metric::finalize(Thread::Temporary& t) noexcept {
   std::unordered_map<util::reference_index<const Context>,
     std::unordered_set<util::reference_index<const Context>>> children;
   for(const auto& cx: t.data.citerate()) {
-    std::reference_wrapper<const Context> c = cx.first;
+    std::reference_wrapper<const Context> c = cx.first.get();
     while(auto p = c.get().direct_parent()) {
       auto x = children.insert({*p, {}});
       x.first->second.emplace(c.get());
