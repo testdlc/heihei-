@@ -392,55 +392,50 @@ ExperimentXML4::udContext::udContext(const Context& c, ExperimentXML4& exml)
     open = "<SecCallPathProfileData";
     close = "</SecCallPathProfileData>\n";
     break;
-  case Scope::Type::point:
-  case Scope::Type::classified_point:
-  case Scope::Type::line:
-  case Scope::Type::concrete_line:
-  case Scope::Type::call:
-  case Scope::Type::classified_call: {
-    std::pair<const Module*, uint64_t> mo{nullptr, 0};
-    if(s.type() != Scope::Type::line) {
-      auto mmo = s.point_data();
-      mo.first = &mmo.first;
-      mo.second = mmo.second;
-    }
-    std::pair<const File*, uint64_t> fl{nullptr, 0};
-    if(s.type() != Scope::Type::point && s.type() != Scope::Type::call) {
-      auto ffl = s.line_data();
-      fl.first = &ffl.first;
-      fl.second = ffl.second;
-    }
+  case Scope::Type::point: {
+    // Individual instructions only appear if they have no source-level interpretation
     const auto pty = c.direct_parent()->scope().type();
-    if(pty == Scope::Type::point || pty == Scope::Type::classified_point
-       || pty == Scope::Type::line || pty == Scope::Type::concrete_line
-       || pty == Scope::Type::call || pty == Scope::Type::classified_call) {
+    if(pty == Scope::Type::point) {
+      auto mo = s.point_data();
       if(proc.prep()) {  // We're in charge of the tag, and this is a tag we want.
         std::ostringstream ss;
         ss << fancynames::unknown_proc.first << " "
               "0x" << std::hex << mo.second << " "
-              "[" << (mo.first ? mo.first->path().filename().string() : "unknown module") << "]";
+              "[" << mo.first.path().filename().string() << "]";
         proc.setTag(ss.str(), mo.second, fancynames::unknown_proc.second);
       }
-      auto& udm = mo.first ? mo.first->userdata[exml.ud] : exml.unknown_module;
-      auto& udf = fl.first ? fl.first->userdata[exml.ud] : udm.unknown_file;
-      udf.incr(exml);
-      std::ostringstream ss;
-      ss << "<PF i=\"" << c.userdata[exml.src.identifier()] << "\""
-               " lm=\"" << udm.id << "\""
-               " n=\"" << proc.id << "\" s=\"" << proc.id << "\""
-               " l=\"" << fl.second << "\""
-               " f=\"" << udf.id << "\">\n";
-      pre = ss.str();
-      premetrics = true;
-      post = "</PF>\n";
+      {
+        auto& udf = mo.first.userdata[exml.ud].unknown_file;
+        udf.incr(exml);
+        std::ostringstream ss;
+        ss << "<PF i=\"" << c.userdata[exml.src.identifier()] << "\""
+                 " lm=\"" << exml.unknown_module.id << "\""
+                 " n=\"" << proc.id << "\" s=\"" << proc.id << "\""
+                 " l=\"0\""
+                 " f=\"" << udf.id << "\">\n";
+        pre = ss.str();
+        premetrics = true;
+        post = "</PF>\n";
+      }
+      {
+        std::ostringstream ss;
+        open = "<";
+        ss << " i=\"" << c.userdata[exml.src.identifier()] << "\""
+              " s=\"" << proc.id << "\""
+              " l=\"0\"";
+        attr = ss.str();
+      }
     }
+    break;
+  }
+  case Scope::Type::line: {
+    auto fl = s.line_data();
     open = "<";
     std::ostringstream ss;
     ss << " i=\"" << c.userdata[exml.src.identifier()] << "\""
           " s=\"" << proc.id << "\""
           " l=\"" << fl.second << "\"";
     attr = ss.str();
-    if(mo.first) mo.first->userdata[exml.ud].incr(*mo.first, exml);
     break;
   }
   case Scope::Type::inlined_function: {
@@ -554,6 +549,11 @@ void ExperimentXML4::write() {
         "<SecCallPathProfile i=\"0\" n=" << util::xmlquoted(name) << ">\n"
         "<SecHeader>\n";
 
+  of << "<IdentifierNameTable>\n";
+  for(const auto& kv: src.attributes().idtupleNames())
+    of << "<Identifier i=\"" << kv.first << "\" n=" << util::xmlquoted(kv.second) << "/>\n";
+  of << "</IdentifierNameTable>\n";
+
   // MetricTable: from the Metrics
   of << "<MetricTable>\n";
   unsigned int id = 0;
@@ -622,11 +622,10 @@ void ExperimentXML4::write() {
     case Scope::Type::function:
       break;
     case Scope::Type::point:
-    case Scope::Type::classified_point:
-    case Scope::Type::call:
-    case Scope::Type::classified_call:
+      // Most points aren't actually emitted
+      if(udc.open.empty()) return;
+      // fallthrough
     case Scope::Type::line:
-    case Scope::Type::concrete_line:
       of << (c.children().empty() ? 'S' : 'C') << udc.attr;
       break;
     }
@@ -654,11 +653,9 @@ void ExperimentXML4::write() {
     case Scope::Type::loop:
       break;
     case Scope::Type::point:
-    case Scope::Type::classified_point:
-    case Scope::Type::call:
-    case Scope::Type::classified_call:
+      if(udc.close.empty()) return;
+      // fallthrough
     case Scope::Type::line:
-    case Scope::Type::concrete_line:
       of << "</" << (c.children().empty() ? 'S' : 'C') << ">\n";
       break;
     }

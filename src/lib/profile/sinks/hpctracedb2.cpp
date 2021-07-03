@@ -135,7 +135,6 @@ void HPCTraceDB2::notifyTimepoint(const Thread& t, ContextRef::const_t cr, std::
   // Skip timepoints at locations we can't represent currently.
   if(!std::holds_alternative<const Context>(cr)) return;
 
-  const Context& c = std::get<const Context>(cr);
   threadsReady.wait();
   auto& ud = t.userdata[uds.thread];
   if(!ud.has_trace) {
@@ -155,11 +154,19 @@ void HPCTraceDB2::notifyTimepoint(const Thread& t, ContextRef::const_t cr, std::
     }
   }
 
+  util::optional_ref<const Context> c = std::get<const Context>(cr);
+  if(c->scope().type() == Scope::Type::point) {
+    if(auto pc = c->direct_parent()) {
+      if(pc->scope().type() != Scope::Type::point)
+        c = pc;
+    }
+  }
+
   if(tm < ud.minTime) ud.minTime = tm;
   if(ud.maxTime < tm) ud.maxTime = tm;
   hpctrace_fmt_datum_t datum = {
     static_cast<uint64_t>(tm.count()),  // Point in time
-    c.userdata[src.identifier()],  // Point in the CCT
+    c->userdata[src.identifier()],  // Point in the CCT
     0  // MetricID (for datacentric, I guess)
   };
   if(ud.inst) {

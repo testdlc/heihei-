@@ -254,7 +254,7 @@ bool StructFile::parse(const Module& m, Classification& c) try {
       auto is = parseVs(xmlstr(attr.getValue(XMLStr("v"))));
       if(is.size() != 1) throw std::logic_error("C tags should only have a single v range");
       auto i = is[0];
-      lscopes.emplace_back(i.lo, Scope::call, stack.top().file, l);
+      lscopes.emplace_back(i.lo, stack.top().file, l);
       c.setScope(i, stack.top().scope);
       auto d = xmlstr(attr.getValue(XMLStr("d")));
       if(!d.empty()) {

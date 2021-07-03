@@ -76,18 +76,6 @@ public:
   ThreadAttributes(const ThreadAttributes& o) = default;
   ~ThreadAttributes() = default;
 
-  /// Get the ID of the host that ran this Thread.
-  // MT: Externally Synchronized
-  const std::optional<uint32_t>& hostid() const noexcept { return m_hostid; }
-
-  /// Get the MPI rank of this Thread.
-  // MT: Externally Synchronized
-  const std::optional<unsigned long>& mpirank() const noexcept { return m_mpirank; }
-
-  /// Get the thread id of this Thread.
-  // MT: Externally Synchronized
-  const std::optional<unsigned long>& threadid() const noexcept { return m_threadid; }
-
   /// Get or set the process id of this Thread.
   // MT: Externally Synchronized
   const std::optional<unsigned long>& procid() const noexcept { return m_procid; }
@@ -102,7 +90,7 @@ public:
   /// be empty.
   // MT: Externally Synchronized
   const std::vector<pms_id_t>& idTuple() const noexcept;
-  void idTuple(const std::vector<pms_id_t>&);
+  void idTuple(std::vector<pms_id_t>);
 
 private:
   // TODO: Remove these 4 fields and replace the bits above with functions that
@@ -110,9 +98,6 @@ private:
   // set once, probably during construction. All after the the other kind
   // constants are set up.
   // Then, later, remove those shims and just use idTuples moving forward.
-  std::optional<uint32_t> m_hostid;
-  std::optional<unsigned long> m_mpirank;
-  std::optional<unsigned long> m_threadid;
   std::optional<unsigned long> m_procid;
   std::optional<unsigned long long> m_timepointCnt;
   mutable std::vector<pms_id_t> m_idTuple;
@@ -214,12 +199,22 @@ public:
   /// return `nullptr` if the variable is not known to be set.
   // MT: Externally Synchronized
   const std::string* environment(const std::string& var) const noexcept;
-  void environment(const std::string& var, const std::string& val);
+  void environment(std::string var, std::string val);
 
   /// Access the entire environment for this profile.
   // MT: Unstable (const)
   const std::unordered_map<std::string, std::string>& environment() const noexcept {
     return m_env;
+  }
+
+  /// Append to the hierarchical tuple name dictionary
+  // MT: Externally Synchronized
+  void idtupleName(uint16_t kind, std::string name);
+
+  /// Access the entire hierarchical tuple name dictionary
+  // MT: Unstable (const)
+  const std::unordered_map<uint16_t, std::string>& idtupleNames() const noexcept {
+    return m_idtupleNames;
   }
 
   /// Merge another PAttr into this one. Uses the given callback to issue
@@ -233,6 +228,7 @@ private:
   std::optional<unsigned long> m_job;
   std::optional<stdshim::filesystem::path> m_path;
   std::unordered_map<std::string, std::string> m_env;
+  std::unordered_map<uint16_t, std::string> m_idtupleNames;
 };
 
 }
