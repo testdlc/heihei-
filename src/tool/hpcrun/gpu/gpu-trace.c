@@ -285,7 +285,7 @@ gpu_compute_profile_name
 
   id_tuple_constructor(&id_tuple, ids, IDTUPLE_MAXTYPES);
 
-  id_tuple_push_back(&id_tuple, IDTUPLE_NODE, gethostid());
+  id_tuple_push_back(&id_tuple, IDTUPLE_COMPOSE(IDTUPLE_NODE, IDTUPLE_IDS_LOGIC_LOCAL), gethostid(), 0);
 
 #if 0
   if (tag.device_id != IDTUPLE_INVALID) {
@@ -294,11 +294,11 @@ gpu_compute_profile_name
 #endif
 
   int rank = hpcrun_get_rank();
-  if (rank >= 0) id_tuple_push_back(&id_tuple, IDTUPLE_RANK, rank);
+  if (rank >= 0) id_tuple_push_back(&id_tuple, IDTUPLE_COMPOSE(IDTUPLE_RANK, IDTUPLE_IDS_LOGIC_ONLY), rank, rank);
 
-  id_tuple_push_back(&id_tuple, IDTUPLE_GPUCONTEXT, tag.context_id);
+  id_tuple_push_back(&id_tuple, IDTUPLE_COMPOSE(IDTUPLE_GPUCONTEXT, IDTUPLE_IDS_LOGIC_ONLY), tag.context_id, tag.context_id);
 
-  id_tuple_push_back(&id_tuple, IDTUPLE_GPUSTREAM, tag.stream_id);
+  id_tuple_push_back(&id_tuple, IDTUPLE_COMPOSE(IDTUPLE_GPUSTREAM, IDTUPLE_IDS_LOGIC_ONLY), tag.stream_id, tag.stream_id);
 
   id_tuple_copy(&cptd->id_tuple, &id_tuple, hpcrun_malloc);
 }
