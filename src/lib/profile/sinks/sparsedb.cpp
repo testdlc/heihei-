@@ -62,11 +62,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "lib/profile/sinks/FORMATS.md.inc"
+
 using namespace hpctoolkit;
 using namespace hpctoolkit::sinks;
 
-SparseDB::SparseDB(stdshim::filesystem::path p, int threads)
-  : dir(std::move(p)), team_size(threads), rank(mpi::World::rank()), ctxMaxId(0),
+SparseDB::SparseDB(stdshim::filesystem::path p)
+  : dir(std::move(p)), rank(mpi::World::rank()), ctxMaxId(0),
     parForPi([&](pms_profile_info_t& item){ handleItemPi(item); }),
     fpos(0), accFpos(1000),
     parForCiip([&](profCtxIdIdxPairs& item){ handleItemCiip(item); }),
@@ -219,10 +221,24 @@ void SparseDB::write()
 {
   auto mpiSem = src.enterOrderedWrite();
 
-  ctxcnt = mpi::bcast(ctxcnt, 0);
-  ctx_nzmids_cnts.resize(ctxcnt, 1);//one for LastNodeEnd
-
+  //flush out the remaining buffer besides summary
   OutBuffer& ob = obuffers[cur_obuf_idx];
+  uint64_t wrt_off = 0;
+
+  if(ob.buf.size() != 0){
+    wrt_off = filePosFetchOp(ob.buf.size());
+    flushOutBuffer(wrt_off, ob);
+  }
+
+  //write prof_infos, no summary yet
+  writeProfInfos();
+
+  //gather cct major data
+  ctxcnt = mpi::bcast(ctxcnt, 0);
+  ctx_nzmids_cnts.resize(ctxcnt, 1);//one for LastNodeEnd  
+  ctx_nzval_cnts.resize(ctxcnt, 0);
+  for(const Context& c: contexts)
+    ctx_nzval_cnts[c.userdata[src.identifier()]] = c.userdata[ud].cnt.load(std::memory_order_relaxed);
 
   if(rank == 0){
     // Allocate the blobs needed for the final output
@@ -268,9 +284,13 @@ void SparseDB::write()
         if(hasInc) ctx_nzmids_cnts[c.userdata[src.identifier()]]++;
       }
     }
+  
+
+    //prepare for cct.db, initiate some worker threads
+    cctdbSetUp();
 
 
-
+    // SUMMARY
     //Add the extra ctx id and offset pair, to mark the end of ctx
     cids.push_back(LastNodeEnd);
     coffsets.push_back(values.size());
@@ -300,39 +320,34 @@ void SparseDB::write()
     auto sparse_metrics_bytes = profBytes(&sm);
     assert(sparse_metrics_bytes.size() == (values.size() * PMS_vm_pair_SIZE + coffsets.size() * PMS_ctx_pair_SIZE));
 
-    //add summary data into the current buffer
-    ob.buf.insert(ob.buf.end(), sparse_metrics_bytes.begin(), sparse_metrics_bytes.end());
-    ob.buffered_pidxs.emplace_back(0);
-    pi.offset = ob.cur_pos;
-    prof_infos[0] = std::move(pi);
-  }
+    //write summary data into the current buffer
+    wrt_off = filePosFetchOp(sparse_metrics_bytes.size());
+    auto pmfi = pmf->open(true, true);
+    pmfi.writeat(wrt_off, sparse_metrics_bytes.size(), sparse_metrics_bytes.data());
+    pi.offset = wrt_off;
 
-  //flush out the remaining buffer
-  if(ob.buf.size() != 0){
-    uint64_t wrt_off = filePosFetchOp(ob.buf.size());
-    flushOutBuffer(wrt_off, ob);
-  }
+    //write prof_info for summary
+    handleItemPi(pi);
 
-  //write prof_infos
-  writeProfInfos();
-
-  //footer to show completeness
-  if(rank == 0){
-    auto pmfi = pmf->open(true, false);
+    //footer to show completeness
+    //auto pmfi = pmf->open(true, false);
     auto footer_val = PROFDBft;
     uint64_t footer_off = filePosFetchOp(sizeof(footer_val));
     pmfi.writeat(footer_off, sizeof(footer_val), &footer_val);
+  }else{
+    //prepare for cct.db, initiate some worker threads
+    cctdbSetUp();
   }
 
-  //gather cct major data
-  ctx_nzval_cnts1.resize(ctxcnt, 0);
-  for(const Context& c: contexts)
-    ctx_nzval_cnts1[c.userdata[src.identifier()]] = c.userdata[ud].cnt.load(std::memory_order_relaxed);
+  //do the actual main reads and writes of cct.db
+  writeCCTDB();
 
-
-  //write CCT major
-  writeCCTMajor();
-
+  // Dump the FORMATS.md file
+  try {
+    std::ofstream(dir / "FORMATS.md") << FORMATS_md;
+  } catch(std::exception& e) {
+    util::log::warning{} << "Error while writing out FORMATS.md file";
+  }
 }
 
 //***************************************************************************
@@ -559,7 +574,9 @@ std::vector<char> SparseDB::convertTuple2Bytes(const id_tuple_t& tuple)
 
     b = convertToByte2(id.kind);
     bytes.insert(bytes.end(), b.begin(), b.end());
-    b = convertToByte8(id.index);
+    b = convertToByte8(id.physical_index);
+    bytes.insert(bytes.end(), b.begin(), b.end());
+    b = convertToByte8(id.logical_index);
     bytes.insert(bytes.end(), b.begin(), b.end());
   }
 
@@ -615,7 +632,8 @@ void SparseDB::workIdTuplesSection()
     idt.length = IDTUPLE_SUMMARY_LENGTH;
     idt.ids = (pms_id_t*)malloc(idt.length * sizeof(pms_id_t));
     idt.ids[0].kind = IDTUPLE_SUMMARY;
-    idt.ids[0].index= IDTUPLE_SUMMARY_IDX;
+    idt.ids[0].physical_index = IDTUPLE_SUMMARY_IDX;
+    idt.ids[0].logical_index = IDTUPLE_SUMMARY_IDX;
 
     id_tuples[0] = std::move(idt);
     id_tuple_ptrs[0] = PMS_id_tuple_len_SIZE + idt.length * PMS_id_SIZE;
@@ -822,7 +840,7 @@ uint64_t SparseDB::writeProf(const std::vector<char>& prof_bytes, uint32_t prof_
 ///...same [sparse metrics] for all rest ctxs
 ///CCTDB FOOTER CORRECT, FILE COMPLETE
 //***************************************************************************
-void SparseDB::writeCCTMajor()
+void SparseDB::cctdbSetUp()
 {
   size_t world_size = mpi::World::size();
 
@@ -831,12 +849,24 @@ void SparseDB::writeCCTMajor()
   buildCtxGroupList();
   updateCtxOffsets();
 
-  // each processor gets its first ctx group
-  ctxGrpId = world_size;
+  // each processor gets its first ctx group, except rank 0
+  ctxGrpId = world_size - 1;
   accCtxGrp.initialize(ctxGrpId);
 
   cmf = util::File(dir / "cct.db", true);
   cmf->synchronize();
+
+  // get the list of prof_info
+  fillProfInfoList();
+
+  // get the ctx_id & ctx_idx pairs for all profiles
+  fillAllProfileCtxIdIdxPairs();
+
+}
+
+void SparseDB::writeCCTDB()
+{
+  size_t world_size = mpi::World::size();
 
   // hdr + ctx info
   if(rank == 0){
@@ -844,14 +874,8 @@ void SparseDB::writeCCTMajor()
     writeCtxInfoSec();
   }
 
-  // get the list of prof_info
-  auto prof_info_list = std::move(profInfoList());
-
-  // get the ctx_id & ctx_idx pairs for all profiles
-  auto all_prof_ctx_pairs = std::move(allProfileCtxIdIdxPairs(prof_info_list));
-
   // read and write all the context groups I(rank) am responsible for
-  rwAllCtxGroup(prof_info_list, all_prof_ctx_pairs);
+  rwAllCtxGroup();
 
   // footer
   mpi::barrier();
@@ -872,8 +896,8 @@ void SparseDB::setCtxOffsets()
   std::vector<uint64_t> local_ctx_off (ctxcnt + 1, 0);
 
   //get local sizes
-  for(uint i = 0; i < ctx_nzval_cnts1.size(); i++){
-    local_ctx_off[i] = ctx_nzval_cnts1[i] * CMS_val_prof_idx_pair_SIZE;
+  for(uint i = 0; i < ctx_nzval_cnts.size(); i++){
+    local_ctx_off[i] = ctx_nzval_cnts[i] * CMS_val_prof_idx_pair_SIZE;
     //empty context also has LastMidEnd in ctx_nzmids_cnts, so if the size is 1, offet should not count that pair for calculation
     if(mpi::World::rank() == 0 && ctx_nzmids_cnts[i] > 1) local_ctx_off[i] += ctx_nzmids_cnts[i] * CMS_m_pair_SIZE;
   }
@@ -983,9 +1007,8 @@ pms_profile_info_t SparseDB::profInfo(const char *input)
 }
 
 
-std::vector<pms_profile_info_t> SparseDB::profInfoList()
+void SparseDB::fillProfInfoList()
 {
-  std::vector<pms_profile_info_t> prof_info;
   auto fhi = pmf->open(false, false);
 
   //read the number of profiles
@@ -998,15 +1021,14 @@ std::vector<pms_profile_info_t> SparseDB::profInfoList()
   fhi.readat(PMS_hdr_SIZE + PMS_prof_info_SIZE, count, input); //skip one prof_info (summary)
 
   //interpret the section and store in a vector of pms_profile_info_t
-  prof_info.resize(num_prof);
+  prof_info_list.resize(num_prof);
   for(int i = 0; i<count; i += PMS_prof_info_SIZE){
     auto pi = profInfo(input + i);
     pi.prof_info_idx = i/PMS_prof_info_SIZE + 1; // the first one is summary profile
-    prof_info[i/PMS_prof_info_SIZE] = std::move(pi);
+    prof_info_list[i/PMS_prof_info_SIZE] = std::move(pi);
   }
   delete []input;
 
-  return prof_info;
 }
 
 //
@@ -1045,23 +1067,21 @@ void SparseDB::handleItemCiip(profCtxIdIdxPairs& ciip)
   *(ciip.prof_ctx_pairs) = std::move(ctx_id_idx_pairs);
 }
 
-std::vector<std::vector<SparseDB::PMS_CtxIdIdxPair>>
-SparseDB::allProfileCtxIdIdxPairs( std::vector<pms_profile_info_t>& prof_info)
+void SparseDB::fillAllProfileCtxIdIdxPairs()
 {
-  std::vector<std::vector<PMS_CtxIdIdxPair>> all_prof_ctx_pairs(prof_info.size());
-  std::vector<profCtxIdIdxPairs> ciips(prof_info.size());
+  all_prof_ctx_pairs.resize(prof_info_list.size());
+  std::vector<profCtxIdIdxPairs> ciips(prof_info_list.size());
 
-  for(uint i = 0; i < prof_info.size(); i++){
+  for(uint i = 0; i < prof_info_list.size(); i++){
     profCtxIdIdxPairs ciip;
     ciip.prof_ctx_pairs = &all_prof_ctx_pairs[i];
-    ciip.pi = &prof_info[i];
+    ciip.pi = &prof_info_list[i];
     ciips[i] = std::move(ciip);
   }
 
   parForCiip.fill(std::move(ciips));
   parForCiip.contribute(parForCiip.wait());
 
-  return all_prof_ctx_pairs;
 }
 
 //
@@ -1164,15 +1184,15 @@ void SparseDB::handleItemPd(profData& pd)
 }
 
 std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>>
-SparseDB::profilesData(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_info_t>& prof_info_list,
-                       std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs)
+SparseDB::profilesData(std::vector<uint32_t>& ctx_ids)
 {
+  auto pilist_size = prof_info_list.size();
 
-  std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>> profiles_data (prof_info_list.size());
-  std::vector<profData> pds (prof_info_list.size());
+  std::vector<std::pair<std::vector<std::pair<uint32_t,uint64_t>>, std::vector<char>>> profiles_data (pilist_size);
+  std::vector<profData> pds (pilist_size);
 
   //read all profiles for this ctx_ids group
-  for(uint i = 0; i < prof_info_list.size(); i++){
+  for(uint i = 0; i < pilist_size; i++){
     profData pd;
     pd.i = i;
     pd.pi_list = &prof_info_list;
@@ -1408,28 +1428,27 @@ void SparseDB::handleItemCtxs(ctxRange& cr)
 }
 
 
-void SparseDB::rwOneCtxGroup(std::vector<uint32_t>& ctx_ids, std::vector<pms_profile_info_t>& prof_info_list,
-                             std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs)
+void SparseDB::rwOneCtxGroup(std::vector<uint32_t>& ctx_ids)
 {
   if(ctx_ids.size() == 0) return;
 
   //read corresponding ctx_id_idx pairs and relevant val&mids bytes
-  auto profiles_data = std::move(profilesData(ctx_ids, prof_info_list, all_prof_ctx_pairs));
+  auto profiles_data = std::move(profilesData(ctx_ids));
 
   //assign ctx_ids to diffrent threads based on size
   uint first_ctx_off = ctx_off[ctx_ids.front()];
   uint total_ctx_ids_size = ctx_off[ctx_ids.back() + 1] - first_ctx_off;
-  uint thread_ctx_ids_size = round(total_ctx_ids_size/team_size);
+  uint thread_ctx_ids_size = round(total_ctx_ids_size/src.teamSize());
 
   //record the start and end position of each thread's ctxs
-  std::vector<uint64_t> t_starts (team_size, 0);
-  std::vector<uint64_t> t_ends (team_size, 0);
-  int cur_thread = 0;
+  std::vector<uint64_t> t_starts (src.teamSize(), 0);
+  std::vector<uint64_t> t_ends (src.teamSize(), 0);
+  std::size_t cur_thread = 0;
 
   //make sure first thread at least gets one ctx
   size_t cur_size = ctx_off[ctx_ids.front() + 1] - first_ctx_off; //size of first ctx
   t_starts[cur_thread] = 0; //the first ctx goes to t_starts[0]
-  if(team_size > 1){
+  if(src.teamSize() > 1){
     for(uint i = 2; i <= ctx_ids.size(); i++){
       auto cid = (i == ctx_ids.size()) ? ctx_ids[i-1] + 1 : ctx_ids[i];
       auto cid_size = ctx_off[cid] - ctx_off[ctx_ids[i-1]];
@@ -1442,18 +1461,18 @@ void SparseDB::rwOneCtxGroup(std::vector<uint32_t>& ctx_ids, std::vector<pms_pro
       }else{
         cur_size += cid_size;
       }
-      if(cur_thread == team_size - 1) break;
+      if(cur_thread == src.teamSize() - 1) break;
     }
   }
   t_ends[cur_thread] = ctx_ids.size();
 
 
   // prepare for the real work
-  std::vector<ctxRange> crs(team_size);
+  std::vector<ctxRange> crs(src.teamSize());
   auto pdptr = &profiles_data;
   auto cidsptr = &ctx_ids;
   auto pisptr = &prof_info_list;
-  for(int i = 0; i < team_size; i++){
+  for(std::size_t i = 0; i < src.teamSize(); i++){
     ctxRange cr;
     cr.start = t_starts[i];
     cr.end = t_ends[i];
@@ -1504,19 +1523,19 @@ uint32_t SparseDB::ctxGrpIdFetch()
 }
 
 
-void SparseDB::rwAllCtxGroup(std::vector<pms_profile_info_t>& prof_info,
-                              std::vector<std::vector<PMS_CtxIdIdxPair>>& all_prof_ctx_pairs)
+void SparseDB::rwAllCtxGroup()
 {
-  uint32_t idx = rank;
+  uint32_t idx = rank - 1;
   uint32_t num_groups = ctx_group_list.size();
   std::vector<uint32_t> ctx_ids;
 
   while(idx < num_groups - 1){
+    if(idx == -1) idx = ctxGrpIdFetch();// check if there is any group left for rank 0
     ctx_ids.clear();
     auto& start_id = ctx_group_list[idx];
     auto& end_id = ctx_group_list[idx + 1];
     for(uint i = start_id; i < end_id; i++) ctx_ids.emplace_back(i);
-    rwOneCtxGroup(ctx_ids, prof_info, all_prof_ctx_pairs);
+    rwOneCtxGroup(ctx_ids);
     idx = ctxGrpIdFetch(); //communicate between processes to get next group => "dynamic" load balance
   }
 

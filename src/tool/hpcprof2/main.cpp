@@ -107,13 +107,7 @@ int main(int argc, char* const argv[]) {
     pipelineB << make_unique_x<sinks::ExperimentXML4>(args.output, args.include_sources,
                                                       tdb.get());
     pipelineB << std::move(tdb);
-    pipelineB << make_unique_x<sinks::SparseDB>(args.output, args.threads);
-
-    // ExperimentXML doesn't support instruction-level metrics, so we need a
-    // line-merging transformer. Since this only changes the Scope, we don't
-    // need to track it.
-    if(!args.instructionGrain)
-      pipelineB << make_unique_x<LineMergeTransformer>();
+    pipelineB << make_unique_x<sinks::SparseDB>(args.output);
     break;
   }
   }

@@ -84,10 +84,14 @@ const std::string* ProfileAttributes::environment(const std::string& v) const no
   if(it == m_env.end()) return nullptr;
   return &it->second;
 }
-void ProfileAttributes::environment(const std::string& var,
-                                    const std::string& val) {
+void ProfileAttributes::environment(std::string var, std::string val) {
   assert(m_env.count(var) == 0 && "Attempt to overwrite a previously set profile environment variable!");
-  m_env.emplace(var, val);
+  m_env.emplace(std::move(var), std::move(val));
+}
+
+void ProfileAttributes::idtupleName(uint16_t kind, std::string name) {
+  assert(m_idtupleNames.count(kind) == 0 && "Attempt to overwrite a previously set profile idtuple name!");
+  m_idtupleNames.emplace(kind, std::move(name));
 }
 
 void ThreadAttributes::procid(unsigned long pid) {
@@ -105,19 +109,10 @@ const std::vector<pms_id_t>& ThreadAttributes::idTuple() const noexcept {
   return m_idTuple;
 }
 
-void ThreadAttributes::idTuple(const std::vector<pms_id_t>& tuple) {
+void ThreadAttributes::idTuple(std::vector<pms_id_t> tuple) {
   assert(m_idTuple.empty() && "Attempt to overwrite a previously set thread hierarchical id tuple!");
   assert(!tuple.empty() && "No tuple given to ThreadAttributes::idTuple");
-  for(const auto& t: tuple) {
-    switch(t.kind) {
-    case IDTUPLE_NODE: m_hostid = t.index; break;
-    case IDTUPLE_RANK: m_mpirank = t.index; break;
-    case IDTUPLE_THREAD: m_threadid = t.index; break;
-    case IDTUPLE_GPUSTREAM: m_threadid = t.index + 500; break;
-    default: break;
-    }
-  }
-  m_idTuple = tuple;
+  m_idTuple = std::move(tuple);
 }
 
 // Stringification
@@ -126,22 +121,30 @@ std::ostream& std::operator<<(std::ostream& os, const ThreadAttributes& ta) noex
   for(const auto& kv: ta.idTuple()) {
     if(!first) os << ' ';
     else first = false;
-    switch(kv.kind) {
+    const char* intr = "ERR";
+    switch(IDTUPLE_GET_INTERPRET(kv.kind)) {
+    case IDTUPLE_IDS_BOTH_VALID: intr = "BOTH"; break;
+    case IDTUPLE_IDS_LOGIC_LOCAL: intr = "GEN LOCAL"; break;
+    case IDTUPLE_IDS_LOGIC_GLOBAL: intr = "GEN GLOBAL"; break;
+    case IDTUPLE_IDS_LOGIC_ONLY: intr = "SINGLE"; break;
+    }
+    switch(IDTUPLE_GET_KIND(kv.kind)) {
     case IDTUPLE_SUMMARY:
       os << "SUMMARY";
-      if(kv.index != 0) os << "(" << kv.index << ")";
-      break;
-    case IDTUPLE_NODE:
-      os << "NODE{" << std::hex << std::setw(8) << kv.index << std::dec << '}';
-      break;
-    case IDTUPLE_RANK: os << "RANK{" << kv.index << "}"; break;
-    case IDTUPLE_THREAD: os << "THREAD{" << kv.index << "}"; break;
-    case IDTUPLE_GPUDEVICE: os << "GPUDEVICE{" << kv.index << "}"; break;
-    case IDTUPLE_GPUCONTEXT: os << "GPUCONTEXT{" << kv.index << "}"; break;
-    case IDTUPLE_GPUSTREAM: os << "GPUSTREAM{" << kv.index << "}"; break;
-    case IDTUPLE_CORE: os << "CORE{" << kv.index << "}"; break;
-    default: os << "[" << kv.kind << "]{" << kv.index << "}"; break;
+      if(kv.kind != IDTUPLE_SUMMARY) os << '[' << intr << ']';
+      return os;
+    case IDTUPLE_NODE: os << "NODE(" << intr << "){"; break;
+    case IDTUPLE_RANK: os << "RANK(" << intr << "){"; break;
+    case IDTUPLE_THREAD: os << "THREAD(" << intr << "){"; break;
+    case IDTUPLE_GPUDEVICE: os << "GPUDEVICE(" << intr << "){"; break;
+    case IDTUPLE_GPUCONTEXT: os << "GPUCONTEXT(" << intr << "){"; break;
+    case IDTUPLE_GPUSTREAM: os << "GPUSTREAM(" << intr << "){"; break;
+    case IDTUPLE_CORE: os << "CORE(" << intr << "){"; break;
+    default: os << "[" << IDTUPLE_GET_KIND(kv.kind) << "](" << intr << "){"; break;
     }
+    if(IDTUPLE_GET_INTERPRET(kv.kind) != IDTUPLE_IDS_LOGIC_ONLY)
+      os << kv.physical_index << ", ";
+    os << kv.logical_index << '}';
   }
   return os;
 }
@@ -175,6 +178,16 @@ bool ProfileAttributes::merge(const ProfileAttributes& o) {
     else if(it->second != e.second) {
       util::log::warning() << "Merging profiles with different values for environment `"
         << e.first << "': `" << it->second << "' and `" << e.second << "'!";
+      ok = false;
+    }
+  }
+
+  for(const auto& e: o.m_idtupleNames) {
+    auto it = m_idtupleNames.find(e.first);
+    if(it == m_idtupleNames.end()) m_idtupleNames.insert(e);
+    else if(it->second != e.second) {
+      util::log::warning() << "Merging profiles with different values for tuple kind "
+        << e.first << ": '" << it->second << "' and '" << e.second << "'!";
       ok = false;
     }
   }

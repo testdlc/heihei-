@@ -118,31 +118,36 @@ Hpcrun4::Hpcrun4(const stdshim::filesystem::path& fn)
     }
   }
   hpcrun_fmt_hdr_free(&hdr, std::free);
-  // Try to read the hierarchical tuple, if we fail synth from the header data
-  id_tuple_t sfTuple;
-  if(hpcrun_sparse_read_id_tuple(file, &sfTuple) == SF_SUCCEED) {
+  // Try to read the hierarchical tuple, failure is fatal for this Source
+  {
+    id_tuple_t sfTuple;
+    if(hpcrun_sparse_read_id_tuple(file, &sfTuple) != SF_SUCCEED) {
+      util::log::error{} << "Invalid profile identifier tuple in: "
+                           << path.string();
+      hpcrun_sparse_close(file);
+      fileValid = false;
+      return;
+    }
     std::vector<pms_id_t> tuple;
     tuple.reserve(sfTuple.length);
     for(size_t i = 0; i < sfTuple.length; i++)
       tuple.push_back(sfTuple.ids[i]);
     id_tuple_free(&sfTuple);
     tattrs.idTuple(std::move(tuple));
-  } else {
-    util::log::warning{} << "Synthesizing hierarchical tuple for: "
-                         << path.string();
-    std::vector<pms_id_t> tuple;
-    if(hostid) tuple.push_back({.kind = IDTUPLE_NODE, .index=*hostid});
-    if(threadid && *threadid >= 500)  // GPUDEVICE goes before RANK
-      tuple.push_back({.kind = IDTUPLE_GPUDEVICE, .index=0});
-    if(mpirank) tuple.push_back({.kind = IDTUPLE_RANK, .index=*mpirank});
-    if(threadid) {
-      if(*threadid >= 500) {  // GPU stream
-        tuple.push_back({.kind = IDTUPLE_GPUCONTEXT, .index=0});
-        tuple.push_back({.kind = IDTUPLE_GPUSTREAM, .index=*threadid - 500});
-      } else
-        tuple.push_back({.kind = IDTUPLE_THREAD, .index=*threadid});
+  }
+  // Try and read the dictionary for the tuple, failure is fatal for this Source
+  {
+    hpcrun_fmt_idtuple_dxnry_t dict;
+    if(hpcrun_sparse_read_idtuple_dxnry(file, &dict) != SF_SUCCEED) {
+      util::log::error{} << "Invalid profile identifier dictionary in: "
+                           << path.string();
+      hpcrun_sparse_close(file);
+      fileValid = false;
+      return;
     }
-    tattrs.idTuple(std::move(tuple));
+    for(int i = 0; i < dict.num_entries; i++)
+      attrs.idtupleName(dict.dictionary[i].kind, dict.dictionary[i].kindStr);
+    hpcrun_fmt_idtuple_dxnry_free(&dict, std::free);
   }
   // If all went well, we can pause the file here.
   hpcrun_sparse_pause(file);
@@ -388,17 +393,6 @@ bool Hpcrun4::realread(const DataClass& needed) try {
           if(ppar != nodes.end())
             return ppar->second;
 
-          // It may be in template form, in which case promote it to a call
-          auto temp = templates.find(n.id_parent);
-          if(temp != templates.end()) {
-            auto mo = temp->second.second.point_data();
-            ppar = nodes.insert({n.id_parent, {temp->second.first,
-                sink.context(temp->second.first, {Scope::call, mo.first, mo.second})
-              }}).first;
-            templates.erase(temp);
-            return ppar->second;
-          }
-
           if(n.lm_id == HPCRUN_GPU_RANGE_NODE)
             return {std::nullopt, std::nullopt};
 
@@ -449,23 +443,12 @@ bool Hpcrun4::realread(const DataClass& needed) try {
         continue;
       }
 
-      if(scope.type() == Scope::Type::point) {
-        // It might be a call node, it might not. Delay it until we know whether it has children.
-        templates.insert({id, {*par, scope}});
-      } else {  // Just emit it, it doesn't need much thought
-        nodes.insert({id, {*par, sink.context(*par, scope)}});
-      }
+      nodes.insert({id, {*par, sink.context(*par, scope)}});
     }
     if(id < 0) {
       util::log::info{} << "Error while reading cct node entry";
       return false;
     }
-
-    // If there are remaining unpromoted templates, emit them as normal points.
-    for(const auto& tmp: templates) {
-      nodes.insert({tmp.first, {tmp.second.first, sink.context(tmp.second.first, tmp.second.second)}});
-    }
-    templates.clear();
   }
   if(needed.hasMetrics()) {
     int cid;
